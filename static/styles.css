@@ -128,6 +128,10 @@ button:disabled {
     transition: background-color 0.2s;
 }
 
+#artworkTable tbody tr.clickable-row {
+    cursor: pointer;
+}
+
 #artworkTable tbody tr:hover {
     background-color: #F9F9F9;
 }

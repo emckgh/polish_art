@@ -14,9 +14,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const pageInfo = document.getElementById('pageInfo');
 const totalCount = document.getElementById('totalCount');
-const modal = document.getElementById('detailModal');
-const modalBody = document.getElementById('modalBody');
-const closeBtn = document.querySelector('.close');
+
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,12 +30,6 @@ function setupEventListeners() {
     
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSearch();
-    });
-    
-    closeBtn.addEventListener('click', closeModal);
-    
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
     });
 }
 
@@ -79,13 +71,12 @@ function displayArtworks(artworks) {
             : 'Unknown';
         
         return `
-            <tr>
+            <tr class="clickable-row" onclick="window.location.href='/static/detail.html?id=${artwork.id}'">
                 <td>
                     ${artwork.image_hash 
                         ? `<img src="${API_BASE}/artworks/${artwork.id}/image" 
                                 alt="${escapeHtml(artwork.title)}" 
-                                class="table-thumbnail" 
-                                onclick="showDetail('${artwork.id}')"
+                                class="table-thumbnail"
                                 onerror="this.outerHTML='<div class=\\'no-image-placeholder\\'>No Image</div>'">`
                         : `<div class="no-image-placeholder">No Image</div>`
                     }
@@ -131,94 +122,6 @@ function handleClear() {
     currentQuery = '';
     currentPage = 1;
     loadArtworks(1);
-}
-
-async function showDetail(artworkId) {
-    try {
-        const response = await fetch(`${API_BASE}/artworks/${artworkId}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const artwork = await response.json();
-        
-        modalBody.innerHTML = `
-            ${artwork.image_hash 
-                ? `<img src="${API_BASE}/artworks/${artwork.id}/image" alt="${escapeHtml(artwork.title)}" class="modal-image" onerror="this.style.display='none'">`
-                : '<div style="text-align: center; padding: 40px; background: #f0f0f0; color: #999; border-radius: 8px; margin-bottom: 20px;">No image available</div>'
-            }
-            <h2 class="modal-title">${escapeHtml(artwork.title)}</h2>
-            
-            ${artwork.artist ? `
-                <div class="modal-detail">
-                    <span class="modal-label">Artist:</span> ${escapeHtml(artwork.artist.name)}
-                    ${artwork.artist.birth_year || artwork.artist.death_year 
-                        ? ` (${artwork.artist.birth_year || '?'} - ${artwork.artist.death_year || '?'})` 
-                        : ''
-                    }
-                    ${artwork.artist.nationality ? ` - ${escapeHtml(artwork.artist.nationality)}` : ''}
-                </div>
-            ` : ''}
-            
-            ${artwork.creation_year ? `
-                <div class="modal-detail">
-                    <span class="modal-label">Year Created:</span> ${artwork.creation_year}
-                </div>
-            ` : ''}
-            
-            ${artwork.description ? `
-                <div class="modal-detail">
-                    <span class="modal-label">Description:</span><br>
-                    ${escapeHtml(artwork.description)}
-                </div>
-            ` : ''}
-            
-            <div class="modal-detail">
-                <span class="modal-label">Status:</span> 
-                <span class="artwork-status">${escapeHtml(artwork.status)}</span>
-            </div>
-            
-            ${artwork.last_known_location ? `
-                <div class="modal-detail">
-                    <span class="modal-label">Last Known Location:</span> ${escapeHtml(artwork.last_known_location)}
-                </div>
-            ` : ''}
-            
-            ${artwork.last_known_date ? `
-                <div class="modal-detail">
-                    <span class="modal-label">Last Known Date:</span> ${new Date(artwork.last_known_date).toLocaleDateString()}
-                </div>
-            ` : ''}
-            
-            ${artwork.image_hash ? `
-                <div class="modal-detail">
-                    <span class="modal-label">Image Hash:</span> <code style="font-size: 0.85em; word-break: break-all;">${escapeHtml(artwork.image_hash)}</code>
-                </div>
-            ` : ''}
-            
-            <div class="modal-detail">
-                <span class="modal-label">Artwork ID:</span> <code style="font-size: 0.85em;">${escapeHtml(artwork.id)}</code>
-            </div>
-            
-            <div class="modal-detail">
-                <span class="modal-label">Added to Database:</span> ${new Date(artwork.created_at).toLocaleString()}
-            </div>
-            
-            <div class="modal-detail">
-                <span class="modal-label">Last Updated:</span> ${new Date(artwork.updated_at).toLocaleString()}
-            </div>
-        `;
-        
-        modal.style.display = 'block';
-        
-    } catch (error) {
-        alert(`Failed to load artwork details: ${error.message}`);
-    }
-}
-
-function closeModal() {
-    modal.style.display = 'none';
 }
 
 function showLoading() {

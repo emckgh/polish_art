@@ -186,3 +186,51 @@ async def get_artwork_image(
             )
         }
     )
+
+
+@router.get("/artworks/{artwork_id}/features")
+async def get_artwork_features(
+    artwork_id: str,
+    repository: ArtworkRepository = Depends(get_repository)
+):
+    """Get computer vision features for an artwork."""
+    from src.repositories.feature_repository import SQLiteFeatureRepository
+    
+    # Verify artwork exists
+    artwork = repository.find_by_id(artwork_id)
+    if not artwork:
+        raise HTTPException(
+            status_code=HttpConstants.STATUS_NOT_FOUND,
+            detail="Artwork not found"
+        )
+    
+    # Get features
+    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
+    features = feature_repo.find_by_artwork_id(artwork_id)
+    
+    if not features:
+        raise HTTPException(
+            status_code=HttpConstants.STATUS_NOT_FOUND,
+            detail="Features not extracted for this artwork"
+        )
+    
+    return {
+        "artwork_id": features.artwork_id,
+        "phash": features.phash,
+        "dhash": features.dhash,
+        "ahash": features.ahash,
+        "clip_embedding": features.clip_embedding,
+        "width_pixels": features.width_pixels,
+        "height_pixels": features.height_pixels,
+        "aspect_ratio": features.aspect_ratio,
+        "format": features.format,
+        "file_size_bytes": features.file_size_bytes,
+        "color_space": features.color_space,
+        "sharpness_score": features.sharpness_score,
+        "contrast_score": features.contrast_score,
+        "brightness_avg": features.brightness_avg,
+        "is_grayscale": features.is_grayscale,
+        "dominant_colors": features.dominant_colors,
+        "extraction_timestamp": features.extraction_timestamp,
+        "model_version": features.model_version
+    }

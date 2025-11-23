@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artwork Details - Polish Looted Art Database</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/detail.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="/static/index.html" class="back-link">&larr; Back to Database</a>
+            <h1 id="artworkTitle">Loading...</h1>
+            <p class="subtitle" id="artworkSubtitle"></p>
+        </header>
+
+        <div class="detail-container">
+            <!-- Image Section -->
+            <div class="image-section">
+                <div id="imageContainer">
+                    <div class="loading-placeholder">Loading image...</div>
+                </div>
+            </div>
+
+            <!-- Tabs Section -->
+            <div class="tabs-section">
+                <div class="tabs-header">
+                    <button class="tab-button active" data-tab="general">
+                        General Information
+                    </button>
+                    <button class="tab-button" data-tab="perceptual">
+                        Perceptual Hash Analysis
+                    </button>
+                </div>
+
+                <div class="tabs-content">
+                    <!-- General Information Tab -->
+                    <div id="general-tab" class="tab-content active">
+                        <div class="info-grid">
+                            <div class="info-section">
+                                <h3>Basic Information</h3>
+                                <div id="basicInfo" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section">
+                                <h3>Artist Information</h3>
+                                <div id="artistInfo" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section full-width">
+                                <h3>Status & Location</h3>
+                                <div id="statusInfo" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section full-width">
+                                <h3>Description</h3>
+                                <div id="descriptionInfo" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section full-width">
+                                <h3>Database Metadata</h3>
+                                <div id="metadataInfo" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Perceptual Hash Analysis Tab -->
+                    <div id="perceptual-tab" class="tab-content">
+                        <div class="info-grid">
+                            <div class="info-section full-width">
+                                <h3>Perceptual Hash Values</h3>
+                                <p class="help-text">
+                                    These hashes enable fast visual similarity detection. 
+                                    Images with similar hashes are visually similar.
+                                </p>
+                                <div id="hashValues" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section">
+                                <h3>Image Properties</h3>
+                                <div id="imageProps" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section">
+                                <h3>Quality Metrics</h3>
+                                <p class="help-text">
+                                    Automated analysis of image quality characteristics.
+                                </p>
+                                <div id="qualityMetrics" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section full-width">
+                                <h3>Dominant Colors</h3>
+                                <p class="help-text">
+                                    Top 5 colors extracted from the image using K-means clustering.
+                                </p>
+                                <div id="dominantColors" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+
+                            <div class="info-section full-width">
+                                <h3>CLIP Semantic Embedding</h3>
+                                <p class="help-text">
+                                    512-dimensional vector representation for semantic similarity matching.
+                                </p>
+                                <div id="clipEmbedding" class="info-items">
+                                    <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/detail.js"></script>
+</body>
+</html>

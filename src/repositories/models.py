@@ -142,14 +142,35 @@ class ImageFeaturesModel(Base):
     artwork_id = Column(
         UUID(as_uuid=True),
         ForeignKey("artworks.id"),
-        nullable=False
+        nullable=False,
+        unique=True
     )
     
-    perceptual_hash = Column(String(100), nullable=False)
-    embedding_vector = Column(Text, nullable=False)
+    # Perceptual hashes (indexed for fast lookup)
+    phash = Column(String(64), nullable=False)
+    dhash = Column(String(64), nullable=False)
+    ahash = Column(String(64), nullable=False)
+    
+    # CLIP embedding (stored as JSON array)
+    clip_embedding = Column(Text)  # JSON: [0.123, -0.456, ...]
+    
+    # Image metadata
     width_pixels = Column(Integer, nullable=False)
     height_pixels = Column(Integer, nullable=False)
-    format = Column(Enum(ImageFormat), nullable=False)
+    aspect_ratio = Column(Float, nullable=False)
+    format = Column(String(10), nullable=False)
     file_size_bytes = Column(Integer, nullable=False)
+    color_space = Column(String(20))
     
+    # Quality metrics
+    sharpness_score = Column(Float)
+    contrast_score = Column(Float)
+    brightness_avg = Column(Float)
+    is_grayscale = Column(Boolean, default=False)
+    
+    # Dominant colors (stored as JSON)
+    dominant_colors = Column(Text)  # JSON: [[255,0,0], [0,255,0], ...]
+    
+    # Metadata
     extraction_timestamp = Column(DateTime, default=datetime.utcnow)
+    model_version = Column(String(50), nullable=False)

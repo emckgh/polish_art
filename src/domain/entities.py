@@ -64,19 +64,41 @@ class Artwork:
             raise ValueError("Creation year cannot be negative")
 
 
-@dataclass(frozen=True)
+@dataclass
 class ImageFeatures:
-    """Extracted features from artwork image."""
+    """Complete feature set for artwork image."""
     
-    perceptual_hash: str
-    embedding_vector: list[float]
-    width_pixels: int
-    height_pixels: int
-    format: ImageFormat
-    file_size_bytes: int
-    extraction_timestamp: datetime = field(
-        default_factory=datetime.utcnow
-    )
+    # Identity
+    artwork_id: UUID = field(default_factory=uuid4)
+    
+    # Perceptual Hashes (for fast similarity)
+    phash: str = ""
+    dhash: str = ""
+    ahash: str = ""
+    
+    # Semantic Embeddings (for deep similarity)
+    clip_embedding: Optional[list[float]] = None
+    
+    # Image Metadata
+    width_pixels: int = 0
+    height_pixels: int = 0
+    aspect_ratio: float = 0.0
+    format: str = ""
+    file_size_bytes: int = 0
+    color_space: str = ""
+    
+    # Quality Metrics
+    sharpness_score: Optional[float] = None
+    contrast_score: Optional[float] = None
+    brightness_avg: Optional[float] = None
+    is_grayscale: bool = False
+    
+    # Dominant Colors (RGB tuples as JSON)
+    dominant_colors: Optional[list[tuple[int, int, int]]] = None
+    
+    # Timestamps
+    extraction_timestamp: datetime = field(default_factory=datetime.utcnow)
+    model_version: str = "v1.0.0"
 
 
 @dataclass(frozen=True)
