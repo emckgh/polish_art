@@ -2,6 +2,7 @@
 from typing import Optional
 from uuid import UUID
 
+from src.constants import SearchConstants
 from src.domain.entities import Artwork, ArtworkStatus
 from src.repositories.interfaces import ArtworkRepository
 
@@ -29,11 +30,11 @@ class ArtworkSearchService:
     def search_by_artist(
         self, 
         artist_name: str,
-        limit: int = 50
+        limit: int = SearchConstants.DEFAULT_SEARCH_LIMIT
     ) -> list[Artwork]:
         """Search artworks by artist name."""
         all_artworks = self._repository.find_all(
-            limit=limit * 2, 
+            limit=limit * SearchConstants.SEARCH_FETCH_MULTIPLIER, 
             offset=0
         )
         
@@ -50,11 +51,11 @@ class ArtworkSearchService:
     def search_by_title(
         self, 
         title: str,
-        limit: int = 50
+        limit: int = SearchConstants.DEFAULT_SEARCH_LIMIT
     ) -> list[Artwork]:
         """Search artworks by title."""
-        all_artworks = self._repository.find_all(
-            limit=limit * 2,
+        all_artworks = self.repository.find_all(
+            limit=limit * SearchConstants.SEARCH_FETCH_MULTIPLIER,
             offset=0
         )
         

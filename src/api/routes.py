@@ -9,6 +9,7 @@ from src.api.schemas import (
     ArtworkSchema,
     SearchQuerySchema
 )
+from src.constants import CacheConstants, HttpConstants, PaginationConstants
 from src.repositories.interfaces import ArtworkRepository
 from src.repositories.sqlite_repository import (
     SQLiteArtworkRepository
@@ -56,19 +57,29 @@ def get_artwork_service(
 
 @router.get("/artworks", response_model=ArtworkListSchema)
 async def list_artworks(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page: int = Query(
+        PaginationConstants.DEFAULT_PAGE, 
+        ge=PaginationConstants.DEFAULT_PAGE
+    ),
+    page_size: int = Query(
+        PaginationConstants.DEFAULT_PAGE_SIZE,
+        ge=PaginationConstants.DEFAULT_PAGE,
+        le=PaginationConstants.MAX_PAGE_SIZE
+    ),
     service: ArtworkSearchService = Depends(get_artwork_service)
 ):
     """List all artworks with pagination."""
-    offset = (page - 1) * page_size
+    offset = (page - PaginationConstants.DEFAULT_PAGE) * page_size
     artworks = service.repository.find_all(
         limit=page_size,
         offset=offset
     )
     
-    total = len(service.repository.find_all(limit=10000, offset=0))
-    total_pages = (total + page_size - 1) // page_size
+    total = len(service.repository.find_all(
+        limit=PaginationConstants.MAX_RECORDS_FOR_COUNT, 
+        offset=0
+    ))
+    total_pages = (total + page_size - PaginationConstants.DEFAULT_PAGE) // page_size
     
     artwork_dicts = [artwork_to_dict(a) for a in artworks]
     
@@ -90,7 +101,7 @@ async def get_artwork(
     artwork = service.repository.find_by_id(artwork_id)
     if not artwork:
         raise HTTPException(
-            status_code=404,
+            status_code=HttpConstants.STATUS_NOT_FOUND,
             detail="Artwork not found"
         )
     return artwork_to_dict(artwork)
@@ -98,9 +109,19 @@ async def get_artwork(
 
 @router.get("/artworks/search/query")
 async def search_artworks(
-    q: str = Query(..., min_length=1),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    q: str = Query(
+        ..., 
+        min_length=PaginationConstants.MIN_SEARCH_QUERY_LENGTH
+    ),
+    page: int = Query(
+        PaginationConstants.DEFAULT_PAGE,
+        ge=PaginationConstants.DEFAULT_PAGE
+    ),
+    page_size: int = Query(
+        PaginationConstants.DEFAULT_PAGE_SIZE,
+        ge=PaginationConstants.DEFAULT_PAGE,
+        le=PaginationConstants.MAX_PAGE_SIZE
+    ),
     service: ArtworkSearchService = Depends(get_artwork_service)
 ):
     """Search artworks by artist or title."""
@@ -114,11 +135,13 @@ async def search_artworks(
     
     results_list = list(all_results.values())
     
-    offset = (page - 1) * page_size
+    offset = (page - PaginationConstants.DEFAULT_PAGE) * page_size
     paginated = results_list[offset:offset + page_size]
     
     total = len(results_list)
-    total_pages = (total + page_size - 1) // page_size
+    total_pages = (
+        (total + page_size - PaginationConstants.DEFAULT_PAGE) // page_size
+    )
     
     artwork_dicts = [artwork_to_dict(a) for a in paginated]
     
@@ -140,13 +163,13 @@ async def get_artwork_image(
     artwork = service.repository.find_by_id(artwork_id)
     if not artwork:
         raise HTTPException(
-            status_code=404,
+            status_code=HttpConstants.STATUS_NOT_FOUND,
             detail="Artwork not found"
         )
     
     if not artwork.image_data:
         raise HTTPException(
-            status_code=404,
+            status_code=HttpConstants.STATUS_NOT_FOUND,
             detail="Image not available for this artwork"
         )
     
@@ -154,7 +177,12 @@ async def get_artwork_image(
         content=artwork.image_data,
         media_type=artwork.image_mime_type or "image/jpeg",
         headers={
-            "Cache-Control": "public, max-age=86400",  # Cache for 24 hours
-            "ETag": artwork.image_hash[:32] if artwork.image_hash else None
+            "Cache-Control": (
+                f"public, max-age={HttpConstants.CACHE_DURATION_ONE_DAY}"
+            ),
+            "ETag": (
+                artwork.image_hash[:CacheConstants.ETAG_HASH_LENGTH] 
+                if artwork.image_hash else None
+            )
         }
     )

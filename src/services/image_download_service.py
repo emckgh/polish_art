@@ -5,6 +5,7 @@ from typing import Optional
 
 import requests
 
+from src.constants import HttpConstants, ImageDownloadConstants
 from src.domain.entities import Artwork
 from src.infrastructure.errors import ScrapingError
 
@@ -12,7 +13,10 @@ from src.infrastructure.errors import ScrapingError
 class ImageDownloadService:
     """Service to download images from URLs and store them."""
     
-    def __init__(self, delay_seconds: float = 2.0):
+    def __init__(
+        self, 
+        delay_seconds: float = ImageDownloadConstants.DEFAULT_DELAY_SECONDS
+    ):
         """Initialize with rate limiting."""
         self._delay_seconds = delay_seconds
         self._last_request_time = 0.0
@@ -22,7 +26,7 @@ class ImageDownloadService:
         """Create HTTP session with headers."""
         session = requests.Session()
         session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": ImageDownloadConstants.USER_AGENT
         })
         return session
     
@@ -39,7 +43,7 @@ class ImageDownloadService:
     def download_image(
         self, 
         url: str, 
-        max_size_mb: int = 10
+        max_size_mb: int = ImageDownloadConstants.DEFAULT_MAX_SIZE_MB
     ) -> Optional[tuple[bytes, str]]:
         """Download image from URL.
         
@@ -54,11 +58,11 @@ class ImageDownloadService:
             
             response = self._session.get(
                 url, 
-                timeout=30,
+                timeout=ImageDownloadConstants.DEFAULT_TIMEOUT_SECONDS,
                 stream=True
             )
             
-            if response.status_code != 200:
+            if response.status_code != HttpConstants.STATUS_OK:
                 return None
             
             content_type = response.headers.get(
@@ -72,10 +76,12 @@ class ImageDownloadService:
                 return None
             
             # Download with size limit
-            max_bytes = max_size_mb * 1024 * 1024
+            max_bytes = max_size_mb * ImageDownloadConstants.BYTES_PER_MB
             image_data = b''
             
-            for chunk in response.iter_content(chunk_size=8192):
+            for chunk in response.iter_content(
+                chunk_size=ImageDownloadConstants.DOWNLOAD_CHUNK_SIZE_BYTES
+            ):
                 if chunk:
                     image_data += chunk
                     if len(image_data) > max_bytes:
