@@ -32,6 +32,9 @@
                     <button class="tab-button" data-tab="perceptual">
                         Perceptual Hash Analysis
                     </button>
+                    <button class="tab-button" data-tab="similar">
+                        Similar Artworks
+                    </button>
                 </div>
 
                 <div class="tabs-content">
@@ -125,6 +128,23 @@
                                     <div class="loading-placeholder">Loading...</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Similar Artworks Tab -->
+                    <div id="similar-tab" class="tab-content">
+                        <div class="similarity-controls">
+                            <label for="similarityMethod">Similarity Method:</label>
+                            <select id="similarityMethod" class="similarity-select">
+                                <option value="hybrid" selected>Hybrid (Hash + CLIP)</option>
+                                <option value="clip">CLIP Semantic Similarity</option>
+                                <option value="hash">Perceptual Hash</option>
+                            </select>
+                            <button id="refreshSimilar" class="btn-secondary">Refresh</button>
+                        </div>
+
+                        <div id="similarResults" class="similar-grid">
+                            <div class="loading-placeholder">Loading similar artworks...</div>
                         </div>
                     </div>
                 </div>

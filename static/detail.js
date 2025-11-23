@@ -53,6 +53,11 @@ function switchTab(tabName) {
     if (tabName === 'perceptual' && !featuresData) {
         loadFeatures();
     }
+    
+    // Load similar artworks if switching to similar tab
+    if (tabName === 'similar') {
+        loadSimilarArtworks();
+    }
 }
 
 // Load artwork details
@@ -430,6 +435,110 @@ function formatBytes(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Load similar artworks
+let similarData = null;
+
+async function loadSimilarArtworks() {
+    // Set up refresh button if not already done
+    const refreshBtn = document.getElementById('refreshSimilar');
+    if (refreshBtn && !refreshBtn.dataset.initialized) {
+        refreshBtn.addEventListener('click', () => {
+            similarData = null; // Clear cache
+            loadSimilarArtworks();
+        });
+        refreshBtn.dataset.initialized = 'true';
+    }
+    
+    // Return cached data if available
+    if (similarData) {
+        displaySimilarArtworks(similarData);
+        return;
+    }
+    
+    const resultsContainer = document.getElementById('similarResults');
+    resultsContainer.innerHTML = '<div class="loading-placeholder">Loading similar artworks...</div>';
+    
+    try {
+        const method = document.getElementById('similarityMethod').value;
+        const response = await fetch(`${API_BASE}/artworks/${artworkId}/similar?method=${method}&limit=12`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load similar artworks: ${response.status}`);
+        }
+        
+        similarData = await response.json();
+        displaySimilarArtworks(similarData);
+        
+    } catch (error) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-error">
+                <strong>Error loading similar artworks:</strong><br>
+                ${error.message}
+            </div>
+        `;
+    }
+}
+
+function displaySimilarArtworks(data) {
+    const resultsContainer = document.getElementById('similarResults');
+    
+    if (!data.similar_artworks || data.similar_artworks.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="no-similar">
+                <h3>No similar artworks found</h3>
+                <p>Try adjusting the similarity method or check if features have been extracted.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Build grid of similar artworks
+    const cardsHtml = data.similar_artworks.map(artwork => {
+        const imageUrl = artwork.image_hash 
+            ? `${API_BASE}/artworks/${artwork.artwork_id}/image`
+            : null;
+        
+        const scorePercent = (artwork.similarity_score * 100).toFixed(1);
+        const scoreWidth = Math.min(artwork.similarity_score * 100, 100);
+        
+        // Determine method badges
+        const methods = artwork.methods || [artwork.method];
+        const methodBadges = methods.map(m => {
+            const displayName = m === 'perceptual_hash' ? 'Hash' : 
+                               m === 'clip_embedding' ? 'CLIP' : m;
+            return `<span class="method-badge">${displayName}</span>`;
+        }).join('');
+        
+        return `
+            <div class="similar-card" onclick="window.location.href='/static/detail.html?id=${artwork.artwork_id}'">
+                ${imageUrl ? 
+                    `<img src="${imageUrl}" alt="${escapeHtml(artwork.title)}" class="similar-card-image" onerror="this.parentElement.querySelector('.similar-card-placeholder') ? this.style.display='none' : this.outerHTML='<div class=\\'similar-card-placeholder\\'>No Image</div>'">` :
+                    `<div class="similar-card-placeholder">No Image</div>`
+                }
+                <div class="similar-card-content">
+                    <div class="similar-card-title">${escapeHtml(artwork.title)}</div>
+                    <div class="similar-card-artist">
+                        ${artwork.artist ? escapeHtml(artwork.artist) : 'Unknown Artist'}
+                        ${artwork.creation_year ? ` (${artwork.creation_year})` : ''}
+                    </div>
+                    <div class="similarity-score">
+                        <span class="score-label">Match:</span>
+                        <div class="score-bar">
+                            <div class="score-bar-fill" style="width: ${scoreWidth}%"></div>
+                        </div>
+                        <span class="score-value">${scorePercent}%</span>
+                    </div>
+                    <div class="similarity-methods">
+                        ${methodBadges}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    resultsContainer.innerHTML = cardsHtml;
 }
 
 function showError(message) {

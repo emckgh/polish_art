@@ -234,3 +234,94 @@ async def get_artwork_features(
         "extraction_timestamp": features.extraction_timestamp,
         "model_version": features.model_version
     }
+
+
+@router.get("/artworks/{artwork_id}/similar")
+async def find_similar_artworks(
+    artwork_id: str,
+    method: str = Query("hybrid", regex="^(hash|clip|hybrid)$"),
+    limit: int = Query(10, ge=1, le=50),
+    repository: ArtworkRepository = Depends(get_repository)
+):
+    """Find similar artworks using CV features.
+    
+    Args:
+        artwork_id: Source artwork ID
+        method: Similarity method (hash, clip, or hybrid)
+        limit: Maximum number of results
+    
+    Returns:
+        List of similar artworks with similarity scores
+    """
+    from src.repositories.feature_repository import SQLiteFeatureRepository
+    from src.services.similarity_service import SimilarityService
+    
+    # Verify artwork exists
+    artwork = repository.find_by_id(artwork_id)
+    if not artwork:
+        raise HTTPException(
+            status_code=HttpConstants.STATUS_NOT_FOUND,
+            detail="Artwork not found"
+        )
+    
+    # Initialize services
+    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
+    similarity_service = SimilarityService(feature_repo, repository)
+    
+    # Find similar artworks based on method
+    if method == "hash":
+        results = similarity_service.find_similar_by_hash(
+            artwork_id=artwork_id,
+            threshold=15,
+            limit=limit
+        )
+    elif method == "clip":
+        results = similarity_service.find_similar_by_clip(
+            artwork_id=artwork_id,
+            threshold=0.75,
+            limit=limit
+        )
+    else:  # hybrid
+        results = similarity_service.find_similar_hybrid(
+            artwork_id=artwork_id,
+            hash_threshold=15,
+            clip_threshold=0.75,
+            limit=limit
+        )
+    
+    return {
+        "source_artwork_id": artwork_id,
+        "method": method,
+        "count": len(results),
+        "similar_artworks": results
+    }
+
+
+@router.get("/artworks/duplicates/detect")
+async def detect_duplicates(
+    threshold: int = Query(5, ge=0, le=20),
+    repository: ArtworkRepository = Depends(get_repository)
+):
+    """Detect potential duplicate artworks using perceptual hashes.
+    
+    Args:
+        threshold: Maximum Hamming distance to consider duplicates (lower = stricter)
+    
+    Returns:
+        List of duplicate groups
+    """
+    from src.repositories.feature_repository import SQLiteFeatureRepository
+    from src.services.similarity_service import SimilarityService
+    
+    # Initialize services
+    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
+    similarity_service = SimilarityService(feature_repo, repository)
+    
+    # Find duplicates
+    duplicates = similarity_service.find_duplicates(threshold=threshold)
+    
+    return {
+        "threshold": threshold,
+        "duplicate_groups": len(duplicates),
+        "groups": duplicates
+    }
