@@ -1,0 +1,327 @@
+# Polish Looted Art Discovery Engine - AI Development Guidelines
+
+## Core Architectural Principles
+
+### 1. Componentization (Mandatory)
+- **Single Responsibility**: Each class/module has ONE clear purpose
+- **Separation of Concerns**: Strict boundaries between layers
+  - Data Access Layer (repositories)
+  - Business Logic Layer (services)
+  - Presentation Layer (API/UI)
+  - Infrastructure Layer (external integrations)
+- **Interface-Driven Design**: Define interfaces before implementations
+- **Dependency Injection**: Constructor injection for all dependencies - NO direct imports of concrete classes in business logic
+
+### 2. Testability (Non-Negotiable)
+- Every public function/method MUST be testable in isolation
+- External dependencies (databases, APIs, file systems) MUST be injected
+- No global state, no singletons without justification
+- Pure functions preferred (deterministic, no side effects)
+- Test coverage requirements:
+  - Critical paths: 90%+
+  - Business logic: 85%+
+  - Overall: 70%+
+
+### 3. Minimal Coupling
+- Components communicate through interfaces, not concrete implementations
+- Use dependency inversion principle
+- Avoid circular dependencies (will be rejected)
+- Maximum import depth: 3 levels
+- Event-driven communication for cross-module interactions
+
+### 4. No Magic Numbers or Strings (Strict)
+❌ **NEVER ALLOWED**:
+```python
+if status == 200:  # BAD
+if user.age > 18:  # BAD
+time.sleep(5)  # BAD
+max_items = 100  # BAD in code
+```
+
+✅ **ALWAYS REQUIRED**:
+```python
+# Constants module
+class HttpStatus:
+    OK = 200
+    NOT_FOUND = 404
+
+class BusinessRules:
+    LEGAL_AGE = 18
+    DEFAULT_TIMEOUT_SECONDS = 5
+    MAX_ITEMS_PER_PAGE = 100
+
+# Usage
+if status == HttpStatus.OK:
+if user.age > BusinessRules.LEGAL_AGE:
+```
+
+**Rules for Constants**:
+- Define in dedicated constants.py or config modules
+- Use UPPER_CASE naming
+- Group related constants in classes or enums
+- Include units in names (TIMEOUT_SECONDS, MAX_SIZE_MB)
+- Document the meaning/rationale
+
+### 5. Method Size Constraints (Enforced)
+
+**Maximum Lines**:
+- Functions: 20 lines (excluding docstring and blank lines)
+- Methods: 15 lines
+- Constructors: 10 lines
+
+**If exceeded, refactor by**:
+- Extract helper functions
+- Use strategy pattern for conditionals
+- Break into smaller composed functions
+- Move complex logic to dedicated classes
+
+**Function Parameters**:
+- Maximum: 4 parameters
+- Use configuration objects/dataclasses for more
+- Use keyword-only arguments for clarity
+
+### 6. Module Size Constraints (Enforced)
+
+**Maximum Lines per Module**:
+- General modules: 250 lines
+- Repository/service modules: 200 lines
+- Model/DTO modules: 150 lines
+- Test modules: 300 lines (exception)
+
+**When approaching limit**:
+- Split into logical sub-modules
+- Extract related functionality to new module
+- Verify single responsibility principle
+- Create package with multiple focused modules
+
+## Project-Specific Architecture
+
+### Layer Structure
+
+```
+src/
+├── domain/           # Core business entities (no external dependencies)
+├── repositories/     # Data access (database, file, API clients)
+├── services/         # Business logic orchestration
+├── scrapers/         # Web scraping components
+├── cv_pipeline/      # Computer vision processing
+├── matching/         # Art matching algorithms
+├── api/              # FastAPI endpoints
+└── infrastructure/   # Cross-cutting concerns (logging, config)
+```
+
+### Mandatory Interfaces
+
+Every component must define its contract:
+
+```python
+# Good: Interface-first design
+from abc import ABC, abstractmethod
+from typing import Protocol
+
+class ImageRepository(Protocol):
+    def save(self, image: Image) -> str: ...
+    def find_by_id(self, id: str) -> Image | None: ...
+
+class ImageMatchingService(ABC):
+    @abstractmethod
+    def find_similar(self, image: Image, threshold: float) -> list[Match]: ...
+```
+
+### Dependency Injection Pattern
+
+```python
+# Good: Dependencies injected
+class ArtworkService:
+    def __init__(
+        self,
+        repository: ArtworkRepository,
+        matcher: ImageMatcher,
+        logger: Logger
+    ):
+        self._repository = repository
+        self._matcher = matcher
+        self._logger = logger
+
+# Bad: Direct instantiation
+class ArtworkService:
+    def __init__(self):
+        self._repository = SQLArtworkRepository()  # ❌ Tight coupling
+```
+
+### Configuration Management
+
+All configuration in dedicated modules:
+
+```python
+# config/settings.py
+from dataclasses import dataclass
+from typing import Final
+
+@dataclass(frozen=True)
+class ScraperConfig:
+    MAX_RETRIES: Final[int] = 3
+    TIMEOUT_SECONDS: Final[int] = 30
+    RATE_LIMIT_REQUESTS_PER_MINUTE: Final[int] = 60
+    USER_AGENT: Final[str] = "PolishArtEngine/1.0"
+
+@dataclass(frozen=True)
+class ImageProcessingConfig:
+    MAX_IMAGE_SIZE_MB: Final[int] = 10
+    SUPPORTED_FORMATS: Final[tuple[str, ...]] = ("jpg", "png", "tiff")
+    HASH_ALGORITHM: Final[str] = "phash"
+```
+
+## Code Quality Standards
+
+### Type Hints (Required)
+```python
+# All function signatures must have type hints
+def process_image(
+    image_path: Path,
+    options: ProcessingOptions
+) -> ImageFeatures:
+    ...
+
+# Use modern type syntax
+def get_artworks() -> list[Artwork]:  # Not List[Artwork]
+    ...
+```
+
+### Docstrings (Required for Public APIs)
+```python
+def match_artwork(query_image: Image, threshold: float) -> list[Match]:
+    """Find artworks similar to the query image.
+    
+    Args:
+        query_image: The image to search for
+        threshold: Similarity threshold (0.0-1.0), where 1.0 is identical
+        
+    Returns:
+        List of matches sorted by similarity score (descending)
+        
+    Raises:
+        InvalidImageError: If query_image is corrupted or invalid format
+        ValueError: If threshold not in valid range
+    """
+```
+
+### Error Handling
+
+```python
+# Define domain-specific exceptions
+class DomainError(Exception):
+    """Base exception for domain errors"""
+
+class ImageProcessingError(DomainError):
+    """Raised when image processing fails"""
+
+class ArtworkNotFoundError(DomainError):
+    """Raised when artwork cannot be found"""
+
+# Use specific exceptions
+def load_image(path: Path) -> Image:
+    if not path.exists():
+        raise ArtworkNotFoundError(f"Image not found: {path}")
+    # Never: raise Exception("Image not found")  ❌
+```
+
+### Naming Conventions
+
+**Constants**:
+```python
+MAX_RETRY_ATTEMPTS = 3
+DEFAULT_TIMEOUT_SECONDS = 30
+API_BASE_URL = "https://api.example.com"
+```
+
+**Classes**:
+```python
+class ImageMatchingService:  # PascalCase, descriptive noun
+class ScrapyAuctionScraper:  # Include implementation detail if relevant
+```
+
+**Functions/Methods**:
+```python
+def calculate_similarity_score()  # snake_case, verb phrase
+def is_valid_artwork()  # boolean: starts with is/has/can
+```
+
+**Private Members**:
+```python
+self._internal_state  # Leading underscore
+```
+
+## Testing Requirements
+
+### Test Structure
+```python
+# tests/unit/services/test_artwork_service.py
+class TestArtworkService:
+    def test_find_similar_returns_matches_above_threshold(self):
+        # Arrange
+        mock_repo = Mock(spec=ArtworkRepository)
+        service = ArtworkService(repository=mock_repo)
+        
+        # Act
+        results = service.find_similar(image, threshold=0.8)
+        
+        # Assert
+        assert all(r.score >= 0.8 for r in results)
+```
+
+### Test Naming
+- `test_<method>_<scenario>_<expected_result>`
+- Example: `test_scrape_returns_empty_list_when_no_results`
+
+### Mock External Dependencies
+```python
+# Good: Mock external services
+@patch('src.repositories.http_client.HttpClient')
+def test_scraper_handles_timeout(mock_client):
+    mock_client.get.side_effect = TimeoutError()
+    # test timeout handling
+```
+
+## Anti-Patterns (Will Be Rejected)
+
+❌ **God Classes**: Classes with too many responsibilities
+❌ **Circular Dependencies**: Module A imports B, B imports A
+❌ **Magic Numbers**: Any literal number (except 0, 1, -1 in loops)
+❌ **Magic Strings**: Any string literal used for logic (except log messages)
+❌ **Deep Nesting**: More than 2 levels of indentation in logic
+❌ **Long Functions**: Over size limits
+❌ **Global State**: Mutable global variables
+❌ **Catch-All Exceptions**: `except Exception: pass`
+❌ **Direct Database Access**: SQL in business logic
+❌ **Hard-Coded URLs/Paths**: Must be in configuration
+
+## Code Review Checklist
+
+Before submitting any code, verify:
+
+- [ ] All constants extracted (no magic numbers/strings)
+- [ ] Functions under 20 lines, methods under 15 lines
+- [ ] Modules under 250 lines
+- [ ] All dependencies injected via constructor
+- [ ] Type hints on all function signatures
+- [ ] Public functions have docstrings
+- [ ] Tests written and passing
+- [ ] No circular dependencies
+- [ ] Interfaces defined for all major components
+- [ ] Error handling with specific exceptions
+- [ ] Configuration externalized
+- [ ] No global mutable state
+
+## Enforcement
+
+These rules are **mandatory**, not suggestions. Code that violates these principles will require refactoring before acceptance.
+
+**Priority Order**:
+1. Correctness (does it work?)
+2. Security (is it safe?)
+3. Architecture (follows these rules?)
+4. Performance (is it efficient?)
+5. Elegance (is it clean?)
+
+When in doubt, prioritize architectural principles over convenience.
