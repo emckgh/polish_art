@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perceptual Hash Endpoint Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #2196F3;
+            background-color: #E3F2FD;
+        }
+        .success {
+            border-left-color: #4CAF50;
+            background-color: #E8F5E9;
+        }
+        .error {
+            border-left-color: #f44336;
+            background-color: #FFEBEE;
+        }
+        .hash-value {
+            font-family: 'Courier New', monospace;
+            background-color: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px 0;
+            word-break: break-all;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Perceptual Hash API Test</h1>
+        
+        <p>Testing the features endpoint at: <code>http://localhost:8000/api/artworks/{artwork_id}/features</code></p>
+        
+        <button onclick="testFeaturesEndpoint()">Test Features Endpoint</button>
+        <button onclick="openDetailPage()">Open Detail Page</button>
+        <button onclick="testCloudflareURL()">Test Cloudflare URL</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const artworkId = '28e08eea-e820-4c75-904d-d57c36c5482d';
+        const localAPI = 'http://localhost:8000/api';
+        const cloudflareURL = 'https://key-spend-truth-colorado.trycloudflare.com/api';
+        
+        async function testFeaturesEndpoint() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-result">🔄 Loading...</div>';
+            
+            try {
+                const response = await fetch(`${localAPI}/artworks/${artworkId}/features`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="test-result success">
+                        <h3>✅ SUCCESS - Features Retrieved</h3>
+                        <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                        
+                        <h4>Perceptual Hashes:</h4>
+                        <div class="hash-value">pHash: ${data.phash || 'N/A'}</div>
+                        <div class="hash-value">dHash: ${data.dhash || 'N/A'}</div>
+                        <div class="hash-value">aHash: ${data.ahash || 'N/A'}</div>
+                        
+                        <h4>Image Properties:</h4>
+                        <div class="hash-value">
+                            Dimensions: ${data.width_pixels} × ${data.height_pixels} pixels<br>
+                            Aspect Ratio: ${data.aspect_ratio}<br>
+                            Format: ${data.format}<br>
+                            File Size: ${(data.file_size_bytes / 1024).toFixed(2)} KB<br>
+                            Color Space: ${data.color_space}
+                        </div>
+                        
+                        <h4>Quality Metrics:</h4>
+                        <div class="hash-value">
+                            Sharpness: ${data.sharpness_score}<br>
+                            Contrast: ${data.contrast_score}<br>
+                            Brightness: ${data.brightness_avg}<br>
+                            Grayscale: ${data.is_grayscale}
+                        </div>
+                        
+                        <h4>CLIP Embedding:</h4>
+                        <div class="hash-value">
+                            ${data.clip_embedding ? `Present (${data.clip_embedding.length} dimensions)` : 'Not available'}
+                        </div>
+                        
+                        <details>
+                            <summary><strong>Full JSON Response</strong></summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ ERROR</h3>
+                        <p>${error.message}</p>
+                        <p><em>Make sure the server is running on port 8000</em></p>
+                    </div>
+                `;
+            }
+        }
+        
+        function openDetailPage() {
+            window.open(`/detail.html?id=${artworkId}`, '_blank');
+        }
+        
+        async function testCloudflareURL() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-result">🔄 Testing Cloudflare URL...</div>';
+            
+            try {
+                const response = await fetch(`${cloudflareURL}/artworks/${artworkId}/features`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="test-result success">
+                        <h3>✅ Cloudflare Tunnel Working!</h3>
+                        <p><strong>URL:</strong> ${cloudflareURL}</p>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p>Features successfully retrieved via Cloudflare tunnel</p>
+                        <div class="hash-value">pHash: ${data.phash}</div>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Cloudflare Test Failed</h3>
+                        <p>${error.message}</p>
+                        <p><em>Make sure the Cloudflare tunnel is running</em></p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Auto-run test on page load
+        window.addEventListener('load', () => {
+            testFeaturesEndpoint();
+        });
+    </script>
+</body>
+</html>

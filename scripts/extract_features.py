@@ -19,8 +19,8 @@ def main():
     
     # Initialize repositories
     print("\nInitializing repositories...")
-    artwork_repo = SQLiteArtworkRepository("sqlite:///artworks.db")
-    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
+    artwork_repo = SQLiteArtworkRepository("sqlite:///data/artworks.db")
+    feature_repo = SQLiteFeatureRepository("sqlite:///data/artworks.db")
     
     # Create extraction service
     print("Loading CV models (this may take a moment)...")

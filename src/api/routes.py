@@ -45,7 +45,7 @@ def artwork_to_dict(artwork):
 
 def get_repository() -> ArtworkRepository:
     """Dependency injection for repository."""
-    return SQLiteArtworkRepository("sqlite:///artworks.db")
+    return SQLiteArtworkRepository("sqlite:///data/artworks.db")
 
 
 def get_artwork_service(
@@ -194,6 +194,7 @@ async def get_artwork_features(
     repository: ArtworkRepository = Depends(get_repository)
 ):
     """Get computer vision features for an artwork."""
+    from uuid import UUID
     from src.repositories.feature_repository import SQLiteFeatureRepository
     
     # Verify artwork exists
@@ -205,8 +206,8 @@ async def get_artwork_features(
         )
     
     # Get features
-    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
-    features = feature_repo.find_by_artwork_id(artwork_id)
+    feature_repo = SQLiteFeatureRepository("sqlite:///data/artworks.db")
+    features = feature_repo.find_by_artwork_id(UUID(artwork_id))
     
     if not features:
         raise HTTPException(
@@ -265,7 +266,7 @@ async def find_similar_artworks(
         )
     
     # Initialize services
-    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
+    feature_repo = SQLiteFeatureRepository("sqlite:///data/artworks.db")
     similarity_service = SimilarityService(feature_repo, repository)
     
     # Find similar artworks based on method
@@ -314,7 +315,7 @@ async def detect_duplicates(
     from src.services.similarity_service import SimilarityService
     
     # Initialize services
-    feature_repo = SQLiteFeatureRepository("sqlite:///artworks.db")
+    feature_repo = SQLiteFeatureRepository("sqlite:///data/artworks.db")
     similarity_service = SimilarityService(feature_repo, repository)
     
     # Find duplicates

@@ -12,18 +12,31 @@ This engine helps identify potentially looted Polish artwork by:
 
 ## Architecture
 
-### Layer Structure
+### Project Structure
 
 ```
-src/
-├── domain/           # Core business entities (artwork, match, provenance)
-├── repositories/     # Data access layer (DB, file system, external APIs)
-├── services/         # Business logic orchestration
-├── scrapers/         # Web scraping implementations
-├── cv_pipeline/      # Computer vision processing pipeline
-├── matching/         # Similarity matching algorithms
-├── api/              # FastAPI REST endpoints
-└── infrastructure/   # Cross-cutting concerns (logging, config, errors)
+polish_art/
+├── README.md                   # This file (only file in root)
+├── data/
+│   └── artworks.db            # SQLite database
+├── src/
+│   ├── main.py                # FastAPI application entry point
+│   ├── domain/                # Core business entities
+│   ├── repositories/          # Data access layer
+│   ├── services/              # Business logic orchestration
+│   ├── scrapers/              # Web scraping implementations
+│   ├── cv_pipeline/           # Computer vision processing pipeline
+│   ├── matching/              # Similarity matching algorithms
+│   ├── api/                   # FastAPI REST endpoints
+│   └── infrastructure/        # Cross-cutting concerns
+├── scripts/
+│   ├── scrape_lootedart_gov_pl.py   # Polish Ministry scraper
+│   ├── scrape_all_obids.py          # Comprehensive obid scraper
+│   ├── import_looted_art.py         # Import from JSON to database
+│   └── extract_features.py          # CV feature extraction
+├── static/                    # Frontend HTML/CSS/JS
+├── tests/                     # Test files
+└── temp/                      # Temporary/test artifacts (not in git)
 ```
 
 ### Core Principles
@@ -137,7 +150,7 @@ pylint src/
 
 ### Start API Server
 ```powershell
-uvicorn src.api.main:app --reload
+python -m src.main
 ```
 
 ### Run Scraper

@@ -1,6 +1,9 @@
 # Python
 __pycache__/
 *.py[cod]
+
+# Temporary files
+temp/
 *$py.class
 *.so
 .Python
@@ -133,3 +136,6 @@ cython_debug/
 *.pyc
 *.pyo
 *.pyd
+
+env/
+*.json
