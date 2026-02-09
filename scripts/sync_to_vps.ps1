@@ -4,7 +4,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$Target = "polishart@polishart.mcqueeney.org"
+    [string]$Target = "polishart@lostpolishart.mcqueeney.org"
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,5 +53,5 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "WARNING: Service restart may have failed. Check status manually." -ForegroundColor Yellow
 } else {
     Write-Host "`n==> Sync complete!" -ForegroundColor Green
-    Write-Host "Check https://polishart.mcqueeney.org/ to verify" -ForegroundColor Cyan
+    Write-Host "Check https://lostpolishart.mcqueeney.org/ to verify" -ForegroundColor Cyan
 }

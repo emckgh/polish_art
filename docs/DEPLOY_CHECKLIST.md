@@ -1,4 +1,4 @@
-# VPS Deployment Checklist for polishart.mcqueeney.org
+# VPS Deployment Checklist for lostpolishart.mcqueeney.org
 
 Use this checklist for deployment. Commands assume Ubuntu/Debian VPS.
 
@@ -9,7 +9,7 @@ Use this checklist for deployment. Commands assume Ubuntu/Debian VPS.
 - [ ] Code pushed to GitHub: `git push`
 - [ ] VPS IP address known: ________________
 - [ ] SSH access verified: `ssh root@YOUR_VPS_IP` works
-- [ ] Domain DNS configured (polishart.mcqueeney.org → VPS IP)
+- [ ] Domain DNS configured (lostpolishart.mcqueeney.org → VPS IP)
 
 ---
 
@@ -110,7 +110,7 @@ sudo nano /etc/nginx/sites-available/polishart
 ```nginx
 server {
     listen 80;
-    server_name polishart.mcqueeney.org;
+    server_name lostpolishart.mcqueeney.org;
     
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -129,17 +129,17 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-**Test:** Open `http://polishart.mcqueeney.org` in browser (should work, no HTTPS yet)
+**Test:** Open `http://lostpolishart.mcqueeney.org` in browser (should work, no HTTPS yet)
 
 ### 7. HTTPS Certificate
 
 ```bash
-sudo certbot --nginx -d polishart.mcqueeney.org
+sudo certbot --nginx -d lostpolishart.mcqueeney.org
 ```
 
 Follow prompts, choose redirect HTTP → HTTPS.
 
-**Test:** Open `https://polishart.mcqueeney.org` (should work with valid certificate)
+**Test:** Open `https://lostpolishart.mcqueeney.org` (should work with valid certificate)
 
 ---
 
@@ -162,15 +162,15 @@ scp data/server_export.db polishart@YOUR_VPS_IP:polish_art/data/artworks.db
 ssh polishart@YOUR_VPS_IP 'sudo systemctl restart polish-art'
 ```
 
-**Test:** Open `https://polishart.mcqueeney.org/` - should show artwork list
+**Test:** Open `https://lostpolishart.mcqueeney.org/` - should show artwork list
 
 ---
 
 ## Verification
 
-- [ ] `https://polishart.mcqueeney.org/` loads main page
-- [ ] `https://polishart.mcqueeney.org/health` returns `{"status":"healthy"}`
-- [ ] `https://polishart.mcqueeney.org/api/artworks?page=1&page_size=5` returns JSON
+- [ ] `https://lostpolishart.mcqueeney.org/` loads main page
+- [ ] `https://lostpolishart.mcqueeney.org/health` returns `{"status":"healthy"}`
+- [ ] `https://lostpolishart.mcqueeney.org/api/artworks?page=1&page_size=5` returns JSON
 - [ ] SSL certificate shows valid (green lock in browser)
 - [ ] `ssh polishart@YOUR_VPS_IP 'sudo systemctl status polish-art'` shows running
 

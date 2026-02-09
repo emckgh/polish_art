@@ -2,7 +2,7 @@
 
 **VPS Details:**
 - Host: `178.63.149.123`
-- Domain: `polishart.mcqueeney.org` (configure DNS to point to this IP)
+- Domain: `lostpolishart.mcqueeney.org` (configure DNS to point to this IP)
 - User: `root` (will create `polishart` user during setup)
 
 ---
@@ -103,7 +103,7 @@ systemctl status polish-art
 cat > /etc/nginx/sites-available/polishart << 'EOF'
 server {
     listen 80;
-    server_name polishart.mcqueeney.org;
+    server_name lostpolishart.mcqueeney.org;
     
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -132,14 +132,14 @@ systemctl restart nginx
 **In your DNS provider (for mcqueeney.org domain):**
 
 Add an A record:
-- Name: `polishart`
+- Name: `lostpolishart`
 - Type: `A`
 - Value: `178.63.149.123`
 - TTL: `300` (or default)
 
 Wait 5-10 minutes for DNS propagation.
 
-**Test:** `ping polishart.mcqueeney.org` should resolve to `178.63.149.123`
+**Test:** `ping lostpolishart.mcqueeney.org` should resolve to `178.63.149.123`
 
 ---
 
@@ -148,7 +148,7 @@ Wait 5-10 minutes for DNS propagation.
 **Once DNS is working:**
 
 ```bash
-certbot --nginx -d polishart.mcqueeney.org
+certbot --nginx -d lostpolishart.mcqueeney.org
 ```
 
 Follow prompts:
@@ -156,7 +156,7 @@ Follow prompts:
 - Agree to terms
 - Choose: **Yes** to redirect HTTP to HTTPS
 
-**Test:** Open `https://polishart.mcqueeney.org/health` - should show green lock
+**Test:** Open `https://lostpolishart.mcqueeney.org/health` - should show green lock
 
 ---
 
@@ -178,14 +178,14 @@ scp data/server_export.db polishart@178.63.149.123:polish_art/data/artworks.db
 ssh polishart@178.63.149.123 'sudo systemctl restart polish-art'
 ```
 
-**Test:** Open `https://polishart.mcqueeney.org/` - should show artwork list
+**Test:** Open `https://lostpolishart.mcqueeney.org/` - should show artwork list
 
 ---
 
 ## Verification Checklist
 
-- [ ] `https://polishart.mcqueeney.org/` loads main page with artworks
-- [ ] `https://polishart.mcqueeney.org/health` returns `{"status":"healthy"}`
+- [ ] `https://lostpolishart.mcqueeney.org/` loads main page with artworks
+- [ ] `https://lostpolishart.mcqueeney.org/health` returns `{"status":"healthy"}`
 - [ ] SSL shows green lock (valid certificate)
 - [ ] `ssh polishart@178.63.149.123 'sudo systemctl status polish-art'` shows "active (running)"
 
