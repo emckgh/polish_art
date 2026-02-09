@@ -77,8 +77,8 @@ pip install -r requirements.txt
 
 4. **Configure environment**
 ```powershell
-cp .env.example .env
-# Edit .env with your configuration
+cp .env.example env/.env
+# Edit env/.env with your configuration
 ```
 
 5. **Initialize database**
@@ -148,9 +148,34 @@ pylint src/
 
 ## Usage
 
-### Start API Server
+### Local Development
+
+**Start API Server:**
 ```powershell
-python -m src.main
+python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Open `http://localhost:8000/` in your browser.
+
+### Production Deployment
+
+**Deploy to VPS:**
+
+See `docs/DEPLOY_CHECKLIST.md` for complete setup instructions.
+
+**Quick sync database to production:**
+```powershell
+.\scripts\sync_to_vps.ps1
+```
+
+**Update code on VPS:**
+```bash
+# On VPS
+cd ~/polish_art
+git pull
+source venv/bin/activate
+pip install -r requirements.txt
+sudo systemctl restart polish-art
 ```
 
 ### Run Scraper
@@ -171,7 +196,7 @@ All configuration in `config/` or environment variables:
 
 - `config/settings.py` - Application settings
 - `config/constants.py` - Business constants
-- `.env` - Secrets and environment-specific values
+- `env/.env` - Secrets and environment-specific values
 
 ## Testing
 
