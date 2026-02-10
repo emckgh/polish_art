@@ -32,6 +32,9 @@
                     <button class="tab-button" data-tab="perceptual">
                         Perceptual Hash Analysis
                     </button>
+                    <button class="tab-button" data-tab="vision">
+                        Vision API Results
+                    </button>
                     <button class="tab-button" data-tab="similar">
                         Similar Artworks
                     </button>
@@ -126,6 +129,21 @@
                                 </p>
                                 <div id="clipEmbedding" class="info-items">
                                     <div class="loading-placeholder">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vision API Results Tab -->
+                    <div id="vision-tab" class="tab-content">
+                        <div class="info-grid">
+                            <div class="info-section full-width">
+                                <h3>Google Vision API Search History</h3>
+                                <p class="help-text">
+                                    Reverse image search results showing where this artwork appears online.
+                                </p>
+                                <div id="visionSearches" class="info-items">
+                                    <div class="loading-placeholder">Loading Vision API results...</div>
                                 </div>
                             </div>
                         </div>

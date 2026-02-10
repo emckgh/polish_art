@@ -1,6 +1,8 @@
 // Polish Looted Art Database - Detail Page JavaScript
 
-const API_BASE = '/api';
+const API_BASE = (typeof window !== 'undefined' && window.location?.origin && window.location.protocol !== 'file:')
+    ? `${window.location.origin}/api`
+    : '/api';
 let artworkId = null;
 let artworkData = null;
 let featuresData = null;
@@ -52,6 +54,11 @@ function switchTab(tabName) {
     // Load features data if switching to perceptual tab and not loaded yet
     if (tabName === 'perceptual' && !featuresData) {
         loadFeatures();
+    }
+    
+    // Load Vision API results if switching to vision tab
+    if (tabName === 'vision') {
+        loadVisionResults();
     }
     
     // Load similar artworks if switching to similar tab
@@ -539,6 +546,268 @@ function displaySimilarArtworks(data) {
     }).join('');
     
     resultsContainer.innerHTML = cardsHtml;
+}
+
+// Load Vision API results
+async function loadVisionResults() {
+    const container = document.getElementById('visionSearches');
+    
+    try {
+        const response = await fetch(`${API_BASE}/vision/artwork/${artworkId}/searches`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                displayNoVisionResults(container);
+                return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        displayVisionResults(container, data);
+        
+    } catch (error) {
+        container.innerHTML = `
+            <div class="error-message">
+                <p>Error loading Vision API results: ${escapeHtml(error.message)}</p>
+            </div>
+        `;
+    }
+}
+
+function displayNoVisionResults(container) {
+    container.innerHTML = `
+        <div class="no-data-message">
+            <p><strong>No Vision API searches performed yet.</strong></p>
+            <p>This artwork hasn't been searched using Google Cloud Vision API.</p>
+            <p>To search for this artwork online, run:</p>
+            <pre>python scripts/batch_vision_search.py --artwork-id "${artworkId}"</pre>
+        </div>
+    `;
+}
+
+async function displayVisionResults(container, data) {
+    if (!data.searches || data.searches.length === 0) {
+        displayNoVisionResults(container);
+        return;
+    }
+    
+    // Separate interesting and regular results
+    const interestingSearches = data.searches.filter(s => s.has_interesting_results);
+    const regularSearches = data.searches.filter(s => !s.has_interesting_results);
+    
+    let html = `
+        <div class="vision-summary">
+            <p><strong>${data.total_searches}</strong> search${data.total_searches !== 1 ? 'es' : ''} performed</p>
+            ${interestingSearches.length > 0 ? `<p class="interesting-count">🔥 <strong>${interestingSearches.length}</strong> with interesting results</p>` : ''}
+        </div>
+    `;
+    
+    // Display interesting results first
+    if (interestingSearches.length > 0) {
+        html += `
+            <div class="interesting-results-section">
+                <h3 class="section-heading">🔥 Interesting Results</h3>
+        `;
+        
+        for (let index = 0; index < interestingSearches.length; index++) {
+            html += renderSearchItem(interestingSearches[index], index + 1, true);
+        }
+        
+        html += `</div>`;
+    }
+    
+    // Display regular results
+    if (regularSearches.length > 0) {
+        html += `
+            <div class="regular-results-section">
+                <h3 class="section-heading">Other Searches</h3>
+        `;
+        
+        for (let index = 0; index < regularSearches.length; index++) {
+            html += renderSearchItem(regularSearches[index], interestingSearches.length + index + 1, false);
+        }
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Load details for all searches
+    for (const search of data.searches) {
+        await loadAndDisplayVisionDetails(search.id);
+    }
+}
+
+function renderSearchItem(search, displayIndex, isInteresting) {
+    const timestamp = new Date(search.request_timestamp).toLocaleString();
+    const statusClass = isInteresting ? 'interesting' : 'no-results';
+    const statusIcon = isInteresting ? '🔥' : '✓';
+    
+    return `
+        <div class="vision-search-item ${statusClass}">
+            <div class="vision-search-header">
+                <div class="vision-search-date">
+                    <strong>${statusIcon} Search ${displayIndex}</strong>
+                    <span class="timestamp">${timestamp}</span>
+                </div>
+                <div class="vision-search-stats">
+                    <span class="stat-badge">Full: ${search.total_full_matches}</span>
+                    <span class="stat-badge">Partial: ${search.total_partial_matches}</span>
+                    <span class="stat-badge">Similar: ${search.total_similar_images}</span>
+                    <span class="stat-badge">Pages: ${search.total_pages_with_image}</span>
+                </div>
+            </div>
+            
+            <div class="vision-search-details">
+                ${isInteresting ? `<p class="interesting-label">⚠️ <strong>Interesting results found!</strong></p>` : ''}
+                ${search.best_match_score ? `<p>Best match score: ${search.best_match_score.toFixed(3)}</p>` : ''}
+                <div id="vision-details-${search.id}" class="vision-details-container">
+                    <div class="loading-placeholder">Loading details...</div>
+                </div>
+            </div>
+            
+            <div class="vision-search-meta">
+                <span>Processing time: ${search.processing_time_ms || 'N/A'}ms</span>
+                <span>API cost: ${search.api_cost_units} unit(s)</span>
+            </div>
+        </div>
+    `;
+}
+
+async function loadAndDisplayVisionDetails(searchId) {
+    const detailsContainer = document.getElementById(`vision-details-${searchId}`);
+    if (!detailsContainer) return;
+
+    detailsContainer.innerHTML = '<div class="loading-placeholder">Loading details...</div>';
+
+    try {
+        const response = await fetch(`${API_BASE}/vision/request/${searchId}`);
+        if (response.status === 404) {
+            detailsContainer.innerHTML = '<p class="no-data-message">No details stored for this search.</p>';
+            return;
+        }
+        if (!response.ok) throw new Error('Failed to load details');
+
+        const finding = await response.json();
+
+        // Build detailed matches display
+        let html = '<div class="vision-matches-list">';
+
+        // Show summary stats
+        html += `
+            <div class="vision-stats-summary">
+                <div class="stat-item"><strong>Full Matches:</strong> ${finding.total_full_matches}</div>
+                <div class="stat-item"><strong>Partial Matches:</strong> ${finding.total_partial_matches}</div>
+                <div class="stat-item"><strong>Similar Images:</strong> ${finding.total_similar_images}</div>
+                <div class="stat-item"><strong>Pages with Image:</strong> ${finding.total_pages_with_image}</div>
+                ${finding.best_match_score ? `<div class="stat-item"><strong>Best Score:</strong> ${finding.best_match_score.toFixed(3)}</div>` : ''}
+                ${finding.processing_time_ms ? `<div class="stat-item"><strong>Processing:</strong> ${finding.processing_time_ms}ms</div>` : ''}
+            </div>
+        `;
+
+        // Show web entities first (context/labels)
+        if (finding.web_entities && finding.web_entities.length > 0) {
+            html += `
+                <div class="vision-context-section">
+                    <h4 class="vision-context-title">🏷️ CONTEXT & LABELS (${finding.web_entities.length} entities)</h4>
+                    <div class="vision-entities">
+            `;
+            
+            finding.web_entities.forEach(entity => {
+                const scorePercent = entity.entity_score ? (entity.entity_score * 100).toFixed(0) : '';
+                html += `
+                    <span class="vision-entity-tag">
+                        ${escapeHtml(entity.entity_description)}
+                        ${scorePercent ? `<span class="entity-score">${scorePercent}%</span>` : ''}
+                    </span>
+                `;
+            });
+            
+            html += '</div></div>';
+        }
+        
+        if (finding.matches && finding.matches.length > 0) {
+            // Group by category
+            const byCategory = {};
+            finding.matches.forEach(match => {
+                const cat = match.domain_category || 'other';
+                if (!byCategory[cat]) byCategory[cat] = [];
+                byCategory[cat].push(match);
+            });
+            
+            // Display each category
+            Object.keys(byCategory).sort().forEach(category => {
+                const categoryIcon = {
+                    'auction': '🔨',
+                    'marketplace': '🛒',
+                    'museum': '🏛️',
+                    'social': '📱',
+                    'academic': '🎓',
+                    'other': '🔗'
+                }[category] || '🔗';
+                
+                html += `
+                    <div class="vision-category-section">
+                        <h4 class="vision-category-title">${categoryIcon} ${category.toUpperCase()} (${byCategory[category].length})</h4>
+                        <div class="vision-matches">
+                `;
+                
+                byCategory[category].forEach((match, i) => {
+                    html += `
+                        <div class="vision-match-item">
+                            <div class="vision-match-header">
+                                <span class="vision-match-type">${match.match_type}</span>
+                                <strong>${escapeHtml(match.domain || 'Unknown domain')}</strong>
+                            </div>
+                    `;
+                    
+                    if (match.page_title) {
+                        html += `<div class="vision-match-title">📄 ${escapeHtml(match.page_title)}</div>`;
+                    }
+                    
+                    // Show page URL if available
+                    if (match.page_url) {
+                        html += `
+                            <div class="vision-match-url">
+                                <strong>Page:</strong> <a href="${escapeHtml(match.page_url)}" target="_blank" rel="noopener noreferrer" class="full-url-link">
+                                    🔗 ${escapeHtml(match.page_url)}
+                                </a>
+                            </div>
+                        `;
+                    }
+                    
+                    // Show image URL if available
+                    if (match.image_url) {
+                        html += `
+                            <div class="vision-match-url">
+                                <strong>Image:</strong> <a href="${escapeHtml(match.image_url)}" target="_blank" rel="noopener noreferrer" class="full-url-link">
+                                    🖼️ ${escapeHtml(match.image_url)}
+                                </a>
+                            </div>
+                        `;
+                    }
+                    
+                    if (match.confidence_score) {
+                        html += `<div class="vision-match-score">Confidence: ${match.confidence_score.toFixed(3)}</div>`;
+                    }
+                    
+                    html += '</div>';
+                });
+                
+                html += '</div></div>';
+            });
+        } else {
+            html += '<p>No detailed matches available.</p>';
+        }
+        
+        html += '</div>';
+        
+        detailsContainer.innerHTML = html;
+        
+    } catch (error) {
+        detailsContainer.innerHTML = `<p class="error-message">Error loading details: ${escapeHtml(error.message)}</p>`;
+    }
 }
 
 function showError(message) {

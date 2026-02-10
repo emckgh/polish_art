@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 
 from src.api.routes import router
+from src.api.auth_routes import auth_router
 
 
 app = FastAPI(
@@ -24,6 +25,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router)
+app.include_router(auth_router)
 
 # Mount static files
 app.mount(

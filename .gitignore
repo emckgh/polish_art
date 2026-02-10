@@ -70,10 +70,11 @@ artworks.db*
 *.log
 logs/
 
-# Environment variables
+# Environment variables and deployment credentials
 .env
 .env.local
 .env.*.local
+.deploy.yaml
 
 # Project specific
 test_image_downloaded.jpg

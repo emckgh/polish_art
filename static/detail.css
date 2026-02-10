@@ -512,6 +512,310 @@
     margin-bottom: 10px;
 }
 
+/* Vision API Results Styles */
+.vision-summary {
+    background-color: #f0f7ff;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--primary);
+}
+
+.vision-search-item {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 2px solid var(--border);
+}
+
+.vision-search-item.interesting {
+    border-color: #ff9800;
+    background-color: #fff3e0;
+}
+
+.vision-search-item.no-results {
+    border-color: #e0e0e0;
+}
+
+.vision-search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.vision-search-date {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.vision-search-date strong {
+    font-size: 1.1em;
+}
+
+.timestamp {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.vision-search-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.stat-badge {
+    background-color: var(--primary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.vision-search-details {
+    padding: 15px;
+    background-color: white;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.interesting-label {
+    color: #ff6f00;
+    font-size: 1.05em;
+    margin-bottom: 10px;
+}
+
+.no-results-label {
+    color: #666;
+    font-style: italic;
+}
+
+.btn-view-details {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.95em;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+.btn-view-details:hover {
+    background-color: var(--secondary);
+}
+
+.vision-search-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 0.85em;
+    color: #888;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.vision-details-container {
+    margin-top: 15px;
+}
+
+.vision-matches-list {
+    background-color: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.vision-stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 8px;
+}
+
+.vision-stats-summary .stat-item {
+    padding: 8px 12px;
+    background-color: white;
+    border-radius: 4px;
+    font-size: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vision-stats-summary .stat-item strong {
+    color: var(--primary);
+    margin-right: 5px;
+}
+
+.vision-context-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.vision-context-title {
+    margin: 0 0 12px 0;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.vision-entities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.vision-entity-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    font-size: 13px;
+    color: #333;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.entity-score {
+    font-size: 11px;
+    color: #667eea;
+    font-weight: 600;
+    background-color: #f0f3ff;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.vision-category-section {
+    margin-bottom: 25px;
+}
+
+.vision-category-section:last-child {
+    margin-bottom: 0;
+}
+
+.vision-category-title {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+}
+
+.vision-matches {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vision-match-item {
+    background-color: #f9f9f9;
+    padding: 12px 15px;
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+}
+
+.vision-match-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.vision-match-type {
+    background-color: var(--primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.vision-match-title {
+    color: #555;
+    font-size: 0.95em;
+    margin-bottom: 6px;
+    font-style: italic;
+}
+
+.vision-match-url {
+    margin: 6px 0;
+}
+
+.vision-match-url a {
+    color: var(--primary);
+    text-decoration: none;
+    word-break: break-all;
+    font-size: 0.9em;
+    display: inline;
+}
+
+.vision-match-url a.full-url-link {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    line-height: 1.5;
+}
+
+.vision-match-url strong {
+    display: inline-block;
+    min-width: 60px;
+    color: #333;
+    font-weight: 600;
+}
+
+.vision-match-url a:hover {
+    text-decoration: underline;
+}
+
+.vision-match-score {
+    color: #666;
+    font-size: 0.85em;
+    margin-top: 4px;
+}
+
+.no-data-message {
+    background-color: #f9f9f9;
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.no-data-message pre {
+    background-color: #2d2d2d;
+    color: #f8f8f8;
+    padding: 15px;
+    border-radius: 4px;
+    text-align: left;
+    overflow-x: auto;
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+.error-message {
+    background-color: #ffebee;
+    border: 1px solid #ef5350;
+    padding: 20px;
+    border-radius: 6px;
+    color: #c62828;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .detail-container {
@@ -558,4 +862,33 @@
     .color-swatches {
         flex-direction: column;
     }
+}
+
+/* Vision API Results Sections */
+.interesting-results-section,
+.regular-results-section {
+    margin-bottom: 30px;
+}
+
+.section-heading {
+    font-size: 1.3em;
+    color: var(--primary);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+}
+
+.interesting-results-section .section-heading {
+    color: #ff9800;
+}
+
+.interesting-count {
+    font-size: 1.1em;
+    color: #ff9800;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.vision-summary .interesting-count {
+    margin-top: 5px;
 }

@@ -67,3 +67,4 @@ isort==5.13.2
 # Development
 ipython==8.18.1
 jupyter==1.0.0
+python-pptx>=1.0.0

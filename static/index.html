@@ -26,6 +26,7 @@
 
         <div class="stats">
             <span id="totalCount">Loading...</span>
+            <span id="visionStats" style="margin-left: 20px; color: #666;"></span>
         </div>
 
         <div class="table-container">
@@ -34,9 +35,27 @@
                     <tr>
                         <th>Image</th>
                         <th>Title</th>
+                        <th>
+                            Vision
+                            <select id="filterVisionAPI" class="header-filter">
+                                <option value="">All</option>
+                                <option value="searched">Yes</option>
+                                <option value="interesting">Interesting</option>
+                                <option value="not-searched">No</option>
+                            </select>
+                        </th>
                         <th>Artist</th>
                         <th>Year</th>
-                        <th>Status</th>
+                        <th>
+                            Status
+                            <select id="filterTestColumn" class="header-filter">
+                                <option value="">All</option>
+                                <option value="RECOVERED">Recovered</option>
+                                <option value="IN_PROCESS">In Process</option>
+                                <option value="LOST">Lost</option>
+                                <option value="LOOTED">Looted</option>
+                            </select>
+                        </th>
                         <th>Last Known Location</th>
                         <th>Description</th>
                     </tr>

@@ -1,9 +1,15 @@
 // Polish Looted Art Database - Frontend JavaScript
 
-const API_BASE = '/api';
+// Use current origin so API works when served from any host (localhost, LAN IP, etc.)
+const API_BASE = (typeof window !== 'undefined' && window.location?.origin && window.location.protocol !== 'file:')
+    ? `${window.location.origin}/api`
+    : '/api';
 let currentPage = 1;
 let currentQuery = '';
 const pageSize = 10;
+let visionStatusMap = new Map();
+let filterVisionAPI = '';
+let filterStatus = '';
 
 // DOM Elements
 const artworkTableBody = document.getElementById('artworkTableBody');
@@ -18,6 +24,7 @@ const totalCount = document.getElementById('totalCount');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    loadVisionStatus();
     loadArtworks();
     setupEventListeners();
 });
@@ -31,6 +38,41 @@ function setupEventListeners() {
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSearch();
     });
+    
+    document.getElementById('filterVisionAPI').addEventListener('change', (e) => {
+        filterVisionAPI = e.target.value;
+        currentPage = 1;
+        loadArtworks(1);
+    });
+    
+    document.getElementById('filterTestColumn').addEventListener('change', (e) => {
+        filterStatus = e.target.value;
+        currentPage = 1;
+        loadArtworks(1);
+    });
+}
+
+async function loadVisionStatus() {
+    try {
+        const response = await fetch(`${API_BASE}/vision/artwork-status`);
+        if (response.ok) {
+            const data = await response.json();
+            // Convert array to Map for quick lookup
+            visionStatusMap = new Map(data.map(item => [item.artwork_id, item]));
+        }
+        
+        // Load and display Vision API stats
+        const statsResponse = await fetch(`${API_BASE}/vision/stats`);
+        if (statsResponse.ok) {
+            const stats = await statsResponse.json();
+            const visionStatsEl = document.getElementById('visionStats');
+            if (visionStatsEl) {
+                visionStatsEl.textContent = `Vision API: ${stats.total_units} units used (${stats.unique_artworks} artworks searched, ${stats.interesting_count} interesting)`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load Vision API status:', error);
+    }
 }
 
 async function loadArtworks(page = 1) {
@@ -49,18 +91,53 @@ async function loadArtworks(page = 1) {
         
         const data = await response.json();
         
-        displayArtworks(data.items);
+        // Apply client-side filtering
+        let filteredItems = data.items;
+        
+        // Filter by Vision API status
+        if (filterVisionAPI === 'searched') {
+            filteredItems = filteredItems.filter(artwork => {
+                const status = visionStatusMap.get(artwork.id);
+                return status && status.has_searches;
+            });
+        } else if (filterVisionAPI === 'interesting') {
+            filteredItems = filteredItems.filter(artwork => {
+                const status = visionStatusMap.get(artwork.id);
+                return status && status.has_interesting_results;
+            });
+        } else if (filterVisionAPI === 'not-searched') {
+            filteredItems = filteredItems.filter(artwork => {
+                const status = visionStatusMap.get(artwork.id);
+                return !status || !status.has_searches;
+            });
+        }
+        
+        // Filter by status
+        if (filterStatus) {
+            filteredItems = filteredItems.filter(artwork => {
+                return artwork.status === filterStatus;
+            });
+        }
+        
+        displayArtworks(filteredItems);
         updatePagination(data);
         updateStats(data);
         
     } catch (error) {
-        showError(`Failed to load artworks: ${error.message}`);
+        const isFile = typeof window !== 'undefined' && window.location?.protocol === 'file:';
+        const looksLikeNetwork = /fetch|network|connection|refused/i.test(String(error.message));
+        const hint = isFile
+            ? ' Open this app from the server (e.g. http://localhost:8000/), not as a file.'
+            : looksLikeNetwork
+                ? ' Make sure the server is running: python -m uvicorn src.main:app --host 0.0.0.0 --port 8000, then open http://localhost:8000/'
+                : '';
+        showError(`Failed to load artworks: ${error.message}.${hint}`);
     }
 }
 
 function displayArtworks(artworks) {
     if (artworks.length === 0) {
-        artworkTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">No artworks found</td></tr>';
+        artworkTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">No artworks found</td></tr>';
         return;
     }
     
@@ -69,6 +146,15 @@ function displayArtworks(artworks) {
         const artistInfo = artwork.artist 
             ? `${escapeHtml(artwork.artist.name)}${artwork.artist.nationality ? ` (${escapeHtml(artwork.artist.nationality)})` : ''}`
             : 'Unknown';
+        
+        // Get Vision API status for this artwork
+        const visionStatus = visionStatusMap.get(artwork.id) || { has_searches: false, has_interesting_results: false };
+        let visionIcons = '';
+        if (visionStatus.has_interesting_results) {
+            visionIcons = '🔥';
+        } else if (visionStatus.has_searches) {
+            visionIcons = '✓';
+        }
         
         return `
             <tr class="clickable-row" onclick="window.location.href='/static/detail.html?id=${artwork.id}'">
@@ -82,6 +168,7 @@ function displayArtworks(artworks) {
                     }
                 </td>
                 <td class="artwork-title-cell">${escapeHtml(artwork.title)}</td>
+                <td class="vision-status-cell" style="text-align: center;">${visionIcons}</td>
                 <td class="artwork-artist-cell">${artistInfo}</td>
                 <td class="artwork-year-cell">${artwork.creation_year || '—'}</td>
                 <td>
@@ -125,11 +212,11 @@ function handleClear() {
 }
 
 function showLoading() {
-    artworkTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #666;">Loading artworks...</td></tr>';
+    artworkTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">Loading artworks...</td></tr>';
 }
 
 function showError(message) {
-    artworkTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--secondary);">${escapeHtml(message)}</td></tr>`;
+    artworkTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--secondary);">${escapeHtml(message)}</td></tr>`;
 }
 
 function escapeHtml(text) {

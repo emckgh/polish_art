@@ -55,7 +55,8 @@ class SQLiteFeatureRepository:
             connection_string: SQLAlchemy connection string
         """
         self._engine = create_engine(connection_string)
-        Base.metadata.create_all(self._engine)
+        if "mode=ro" not in connection_string:
+            Base.metadata.create_all(self._engine)
         self._session_factory = sessionmaker(bind=self._engine)
     
     def _to_entity(self, model: ImageFeaturesModel) -> ImageFeatures:

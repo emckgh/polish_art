@@ -55,6 +55,8 @@ class ArtworkModel(Base):
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    # Sync: when False, server export script omits image_data for this artwork
+    include_image_on_server = Column(Boolean, default=True, nullable=True)
     
     # Relationships
     provenances = relationship("ProvenanceModel", back_populates="artwork")
@@ -174,3 +176,91 @@ class ImageFeaturesModel(Base):
     # Metadata
     extraction_timestamp = Column(DateTime, default=datetime.utcnow)
     model_version = Column(String(50), nullable=False)
+
+
+class VisionAPIRequestModel(Base):
+    """Database model for Google Vision API requests."""
+    
+    __tablename__ = "vision_api_requests"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    artwork_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artworks.id"),
+        nullable=False
+    )
+    
+    request_timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    image_source = Column(String(20), nullable=False)  # 'database' or 'url'
+    api_cost_units = Column(Integer, default=1, nullable=False)
+    
+    # Summary statistics
+    total_full_matches = Column(Integer, default=0, nullable=False)
+    total_partial_matches = Column(Integer, default=0, nullable=False)
+    total_similar_images = Column(Integer, default=0, nullable=False)
+    total_pages_with_image = Column(Integer, default=0, nullable=False)
+    
+    best_match_score = Column(Float)
+    has_interesting_results = Column(Boolean, default=False, nullable=False)
+    processing_time_ms = Column(Integer)
+    
+    # Relationships
+    matches = relationship("VisionAPIMatchModel", back_populates="request", cascade="all, delete-orphan")
+    entities = relationship("VisionAPIEntityModel", back_populates="request", cascade="all, delete-orphan")
+
+
+class VisionAPIMatchModel(Base):
+    """Database model for Vision API image matches."""
+    
+    __tablename__ = "vision_api_matches"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    request_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vision_api_requests.id"),
+        nullable=False
+    )
+    
+    match_type = Column(String(20), nullable=False)  # 'full', 'partial', 'similar'
+    image_url = Column(String(2000), nullable=False)
+    confidence_score = Column(Float)
+    page_url = Column(String(2000))
+    page_title = Column(String(500))
+    domain = Column(String(200))
+    domain_category = Column(String(50))  # 'auction', 'museum', 'marketplace', 'social', 'other'
+    
+    # Relationships
+    request = relationship("VisionAPIRequestModel", back_populates="matches")
+
+
+class VisionAPIEntityModel(Base):
+    """Database model for Vision API web entities."""
+    
+    __tablename__ = "vision_api_entities"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    request_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vision_api_requests.id"),
+        nullable=False
+    )
+    
+    entity_description = Column(String(500))
+    entity_score = Column(Float)
+    
+    # Relationships
+    request = relationship("VisionAPIRequestModel", back_populates="entities")
+
+
+class VisionAPIDomainStatsModel(Base):
+    """Database model for aggregated domain statistics."""
+    
+    __tablename__ = "vision_api_domain_stats"
+    
+    domain = Column(String(200), primary_key=True)
+    category = Column(String(50))
+    total_appearances = Column(Integer, default=1, nullable=False)
+    artworks_found = Column(Text)  # JSON array of artwork IDs
+    first_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
+    flagged_suspicious = Column(Boolean, default=False, nullable=False)

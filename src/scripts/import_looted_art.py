@@ -24,36 +24,67 @@ from src.domain.entities import Artwork, Artist, ArtworkStatus
 from uuid import UUID
 
 
-def download_image(url: str, output_path: Path, session: Optional[requests.Session] = None) -> bool:
-    """Download image from URL using session to maintain cookies."""
-    try:
-        # Use session if provided, otherwise create new request
-        if session:
-            response = session.get(url, timeout=30, stream=True, verify=False)
-        else:
-            response = requests.get(url, timeout=30, stream=True, verify=False)
-        response.raise_for_status()
-        
-        # Check if we actually got an image
-        content_type = response.headers.get('Content-Type', '')
-        if 'image' not in content_type.lower():
-            print(f"  ✗ Not an image: got {content_type}")
+def download_image(url: str, output_path: Path, session: Optional[requests.Session] = None, max_retries: int = 3) -> bool:
+    """Download image from URL using session to maintain cookies with retry logic."""
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            # Use session if provided, otherwise create new request
+            if session:
+                response = session.get(url, timeout=30, stream=True, verify=False)
+            else:
+                response = requests.get(url, timeout=30, stream=True, verify=False)
+            response.raise_for_status()
+            
+            # Check if we actually got an image
+            content_type = response.headers.get('Content-Type', '')
+            if 'image' not in content_type.lower():
+                print(f"  ✗ Not an image: got {content_type}")
+                return False
+            
+            with open(output_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            return True
+        except (requests.exceptions.RequestException, IOError) as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                print(f"  ⚠ Retry {attempt + 1}/{max_retries} after {wait_time}s: {str(e)[:50]}")
+                time.sleep(wait_time)
+            else:
+                print(f"  ✗ Failed after {max_retries} attempts: {str(e)[:50]}")
+                return False
+        except Exception as e:
+            print(f"  ✗ Unexpected error: {e}")
             return False
-        
-        with open(output_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        
-        return True
-    except Exception as e:
-        print(f"  ✗ Failed to download: {e}")
-        return False
+    
+    return False
 
 
-def import_artwork(data: Dict[str, Any], repo: SQLiteArtworkRepository, image_dir: Path, session: Optional[requests.Session] = None) -> bool:
-    """Import single artwork into database."""
+def import_artwork(data: Dict[str, Any], repo: SQLiteArtworkRepository, image_dir: Path, session: Optional[requests.Session] = None):
+    """
+    Import single artwork into database.
+    
+    Returns:
+        True if imported successfully
+        None if skipped (already exists)
+        False if failed
+    """
     
     try:
+        # Check if already imported by obid
+        obid = data.get('obid')
+        if obid:
+            # Check if card_number already exists (using title as proxy since we don't store obid)
+            title = data.get('title', 'Untitled')
+            existing = repo.find_all(limit=10000, offset=0)
+            for artwork in existing:
+                if artwork.title == title:
+                    return None  # Skip duplicate
+        
         artwork_id = uuid4()  # Keep as UUID, not string
         
         # Parse artist if available
@@ -162,7 +193,7 @@ def main():
     )
     parser.add_argument(
         '--db',
-        default='artworks.db',
+        default='data/artworks.db',
         help='Database file path'
     )
     parser.add_argument(
@@ -189,6 +220,10 @@ def main():
     # Initialize repository
     repo = SQLiteArtworkRepository(f"sqlite:///{args.db}")
     
+    # Check how many are already imported
+    existing_count = len(repo.find_all(limit=10000, offset=0))
+    print(f"Database currently has {existing_count} artworks\n")
+    
     # Create image directory
     image_dir = Path(args.image_dir)
     image_dir.mkdir(parents=True, exist_ok=True)
@@ -211,14 +246,19 @@ def main():
     # Import artworks
     successful = 0
     failed = 0
+    skipped = 0
     
     for i, artwork_data in enumerate(artworks, 1):
         title = artwork_data.get('title', 'Untitled')
         print(f"[{i}/{len(artworks)}] {title}")
         
-        if import_artwork(artwork_data, repo, image_dir, session):
+        result = import_artwork(artwork_data, repo, image_dir, session)
+        if result is True:
             successful += 1
             print(f"  ✓ Imported")
+        elif result is None:
+            skipped += 1
+            print(f"  ⊘ Skipped (already exists)")
         else:
             failed += 1
         
@@ -227,7 +267,9 @@ def main():
     print("=" * 60)
     print(f"Import complete!")
     print(f"  Successful: {successful}")
+    print(f"  Skipped: {skipped}")
     print(f"  Failed: {failed}")
+    print(f"  Total processed: {successful + skipped + failed}/{len(artworks)}")
     print("=" * 60)
 
 

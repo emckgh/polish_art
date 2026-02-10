@@ -1,5 +1,5 @@
 """
-Google Cloud Vision API integration for reverse image search.
+Google Cloud Vision API integration for reverse image search with tracking.
 
 This module provides functionality to search for similar images on the web
 using Google's Vision API Web Detection feature. Given an artwork image,
@@ -9,6 +9,9 @@ it can find:
 - Visually similar images
 - Pages containing the image
 - Best guess labels and descriptions
+
+All API usage is automatically tracked in the database with intelligent
+filtering to store detailed results only for interesting matches.
 
 Setup:
 1. Enable Vision API: https://console.cloud.google.com/apis/library/vision.googleapis.com
@@ -22,6 +25,7 @@ Usage:
     
     searcher = VisionSearch()
     results = searcher.reverse_image_search(
+        artwork_id=artwork_uuid,
         image_path="data/artworks/painting.jpg"
     )
     
@@ -31,10 +35,12 @@ Usage:
 
 import os
 import json
+import time
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
+from uuid import UUID
 import requests
 
 try:
@@ -100,9 +106,14 @@ class ReverseImageSearchResult:
 
 
 class VisionSearch:
-    """Client for Google Cloud Vision API reverse image search."""
+    """Client for Google Cloud Vision API reverse image search with tracking."""
     
-    def __init__(self, credentials_path: Optional[str] = None):
+    def __init__(
+        self, 
+        credentials_path: Optional[str] = None,
+        enable_tracking: bool = True,
+        database_url: str = "sqlite:///data/artworks.db"
+    ):
         """
         Initialize Vision Search client.
         
@@ -110,6 +121,8 @@ class VisionSearch:
             credentials_path: Optional path to service account JSON.
                             If not provided, uses GOOGLE_APPLICATION_CREDENTIALS
                             or gcloud default credentials.
+            enable_tracking: Whether to track API usage in database
+            database_url: Database connection string for tracking
         
         Raises:
             ImportError: If google-cloud-vision is not installed
@@ -135,9 +148,25 @@ class VisionSearch:
                 "1. Set GOOGLE_APPLICATION_CREDENTIALS environment variable, or\n"
                 "2. Run: gcloud auth application-default login"
             )
+        
+        # Initialize tracking
+        self.enable_tracking = enable_tracking
+        self.tracking_service = None
+        
+        if enable_tracking:
+            try:
+                from src.repositories.vision_repository import VisionAPIRepository
+                from src.services.vision_tracking_service import VisionAPITrackingService
+                
+                repository = VisionAPIRepository(database_url)
+                self.tracking_service = VisionAPITrackingService(repository)
+            except Exception as e:
+                print(f"Warning: Could not initialize tracking: {e}")
+                self.enable_tracking = False
     
     def reverse_image_search(
         self,
+        artwork_id: Optional[UUID] = None,
         image_path: Optional[str] = None,
         image_url: Optional[str] = None,
         image_bytes: Optional[bytes] = None,
@@ -147,6 +176,7 @@ class VisionSearch:
         Perform reverse image search using Vision API.
         
         Args:
+            artwork_id: UUID of artwork (required for tracking)
             image_path: Path to local image file
             image_url: URL to image
             image_bytes: Raw image bytes
@@ -156,21 +186,31 @@ class VisionSearch:
             ReverseImageSearchResult with all matches
         
         Raises:
-            ValueError: If no image source provided
+            ValueError: If no image source provided or artwork_id missing when tracking enabled
         """
+        # Validate inputs
+        if self.enable_tracking and not artwork_id:
+            raise ValueError("artwork_id is required when tracking is enabled")
+        
+        # Track processing time
+        start_time = time.time()
+        
         # Load image
         if image_path:
             with open(image_path, 'rb') as f:
                 content = f.read()
             source = image_path
+            image_source = 'database'
         elif image_url:
             response = requests.get(image_url, timeout=30)
             response.raise_for_status()
             content = response.content
             source = image_url
+            image_source = 'url'
         elif image_bytes:
             content = image_bytes
             source = "bytes"
+            image_source = 'database'
         else:
             raise ValueError("Must provide image_path, image_url, or image_bytes")
         
@@ -236,6 +276,36 @@ class VisionSearch:
                 'description': entity.description,
                 'score': entity.score
             })
+        
+        # Calculate processing time
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        
+        # Track results if enabled
+        if self.enable_tracking and artwork_id and self.tracking_service:
+            try:
+                # Convert matches to dictionaries for tracking
+                full_match_dicts = [{'url': m.url, 'score': m.score} for m in full_matches]
+                partial_match_dicts = [{'url': m.url, 'score': m.score} for m in partial_matches]
+                similar_match_dicts = [{'url': m.url, 'score': m.score} for m in visually_similar]
+                pages_dicts = [{
+                    'url': p.url, 
+                    'page_title': p.page_title,
+                    'full_matching_images': p.full_matching_images,
+                    'partial_matching_images': p.partial_matching_images
+                } for p in pages_with_image]
+                
+                self.tracking_service.analyze_and_track_results(
+                    artwork_id=artwork_id,
+                    full_matches=full_match_dicts,
+                    partial_matches=partial_match_dicts,
+                    visually_similar=similar_match_dicts,
+                    pages_with_image=pages_dicts,
+                    web_entities=web_entities,
+                    image_source=image_source,
+                    processing_time_ms=processing_time_ms
+                )
+            except Exception as e:
+                print(f"Warning: Could not track results: {e}")
         
         return ReverseImageSearchResult(
             source_image=source,
