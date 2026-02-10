@@ -16,7 +16,8 @@ class SQLiteArtworkRepository(ArtworkRepository):
     def __init__(self, database_url: str):
         """Initialize repository with database connection."""
         self._engine = create_engine(database_url)
-        Base.metadata.create_all(self._engine)
+        if "mode=ro" not in database_url:
+            Base.metadata.create_all(self._engine)
         self._session_factory = sessionmaker(bind=self._engine)
     
     def save(self, artwork: Artwork) -> Artwork:
@@ -48,11 +49,13 @@ class SQLiteArtworkRepository(ArtworkRepository):
     
     def find_all(self, limit: int, offset: int) -> list[Artwork]:
         """Find all artworks with pagination."""
+        from sqlalchemy.orm import defer
         session = self._session_factory()
         try:
-            models = session.query(ArtworkModel).limit(
-                limit
-            ).offset(offset).all()
+            # Defer loading image_data BLOB for performance
+            models = session.query(ArtworkModel).options(
+                defer('image_data')
+            ).limit(limit).offset(offset).all()
             return [self._to_entity(m) for m in models]
         finally:
             session.close()
