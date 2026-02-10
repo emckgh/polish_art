@@ -49,11 +49,20 @@ class SQLiteArtworkRepository(ArtworkRepository):
     
     def find_all(self, limit: int, offset: int) -> list[Artwork]:
         """Find all artworks with pagination."""
+        import logging
+        import time
         from sqlalchemy.orm import load_only
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"find_all: Starting query for limit={limit}, offset={offset}")
+        
         session = self._session_factory()
         try:
+            start = time.time()
+            logger.info("find_all: Building query...")
+            
             # Load only non-BLOB columns for performance
-            models = session.query(ArtworkModel).options(
+            query = session.query(ArtworkModel).options(
                 load_only(
                     ArtworkModel.id,
                     ArtworkModel.title,
@@ -72,8 +81,20 @@ class SQLiteArtworkRepository(ArtworkRepository):
                     ArtworkModel.created_at,
                     ArtworkModel.updated_at
                 )
-            ).limit(limit).offset(offset).all()
-            return [self._to_entity(m, skip_image_data=True) for m in models]
+            ).limit(limit).offset(offset)
+            
+            logger.info("find_all: Executing query...")
+            models = query.all()
+            query_time = time.time() - start
+            logger.info(f"find_all: Query completed in {query_time:.2f}s, got {len(models)} results")
+            
+            logger.info("find_all: Converting to entities...")
+            start = time.time()
+            entities = [self._to_entity(m, skip_image_data=True) for m in models]
+            convert_time = time.time() - start
+            logger.info(f"find_all: Conversion completed in {convert_time:.2f}s")
+            
+            return entities
         finally:
             session.close()
     
