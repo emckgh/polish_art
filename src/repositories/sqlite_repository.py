@@ -54,7 +54,7 @@ class SQLiteArtworkRepository(ArtworkRepository):
         try:
             # Defer loading image_data BLOB for performance
             models = session.query(ArtworkModel).options(
-                defer('image_data')
+                defer(ArtworkModel.image_data)
             ).limit(limit).offset(offset).all()
             return [self._to_entity(m) for m in models]
         finally:
