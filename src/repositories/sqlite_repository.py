@@ -96,6 +96,9 @@ class SQLiteArtworkRepository(ArtworkRepository):
     
     def _to_entity(self, model: ArtworkModel) -> Artwork:
         """Convert database model to entity."""
+        from sqlalchemy.orm.attributes import instance_state
+        from sqlalchemy.orm.base import NEVER_SET
+        
         artist = None
         if model.artist_name:
             artist = Artist(
@@ -105,6 +108,13 @@ class SQLiteArtworkRepository(ArtworkRepository):
                 nationality=model.artist_nationality
             )
         
+        # Check if image_data is deferred to avoid triggering lazy load
+        state = instance_state(model)
+        image_data = None
+        if 'image_data' not in state.unloaded:
+            # Only access if not deferred
+            image_data = model.image_data
+        
         return Artwork(
             id=model.id,
             title=model.title,
@@ -113,7 +123,7 @@ class SQLiteArtworkRepository(ArtworkRepository):
             description=model.description,
             status=model.status,
             image_url=model.image_url,
-            image_data=model.image_data,
+            image_data=image_data,
             image_mime_type=model.image_mime_type,
             image_hash=model.image_hash,
             last_known_location=model.last_known_location,
