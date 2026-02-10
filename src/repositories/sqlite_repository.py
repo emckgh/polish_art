@@ -49,14 +49,13 @@ class SQLiteArtworkRepository(ArtworkRepository):
     
     def find_all(self, limit: int, offset: int) -> list[Artwork]:
         """Find all artworks with pagination."""
-        from sqlalchemy.orm import defer
         session = self._session_factory()
         try:
-            # Defer loading image_data BLOB for performance
-            models = session.query(ArtworkModel).options(
-                defer(ArtworkModel.image_data)
-            ).limit(limit).offset(offset).all()
-            return [self._to_entity(m) for m in models]
+            models = session.query(ArtworkModel).limit(
+                limit
+            ).offset(offset).all()
+            # Convert to entities but skip loading image_data
+            return [self._to_entity(m, skip_image_data=True) for m in models]
         finally:
             session.close()
     
@@ -94,11 +93,8 @@ class SQLiteArtworkRepository(ArtworkRepository):
             updated_at=artwork.updated_at
         )
     
-    def _to_entity(self, model: ArtworkModel) -> Artwork:
+    def _to_entity(self, model: ArtworkModel, skip_image_data: bool = False) -> Artwork:
         """Convert database model to entity."""
-        from sqlalchemy.orm.attributes import instance_state
-        from sqlalchemy.orm.base import NEVER_SET
-        
         artist = None
         if model.artist_name:
             artist = Artist(
@@ -108,12 +104,8 @@ class SQLiteArtworkRepository(ArtworkRepository):
                 nationality=model.artist_nationality
             )
         
-        # Check if image_data is deferred to avoid triggering lazy load
-        state = instance_state(model)
-        image_data = None
-        if 'image_data' not in state.unloaded:
-            # Only access if not deferred
-            image_data = model.image_data
+        # Skip loading image_data for list queries (performance)
+        image_data = None if skip_image_data else model.image_data
         
         return Artwork(
             id=model.id,
