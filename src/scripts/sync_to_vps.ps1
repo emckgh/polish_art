@@ -20,7 +20,7 @@ if (-not $env:VIRTUAL_ENV) {
 
 # Build server export database
 Write-Host "`n==> Building server export database..." -ForegroundColor Cyan
-python scripts/build_and_sync_server_db.py --output data/server_export.db --strip-images-unless-include
+python src/scripts/build_and_sync_server_db.py --output data/server_export.db --strip-images-unless-include
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to build server export database" -ForegroundColor Red
