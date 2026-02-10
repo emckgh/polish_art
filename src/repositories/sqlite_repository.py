@@ -49,12 +49,30 @@ class SQLiteArtworkRepository(ArtworkRepository):
     
     def find_all(self, limit: int, offset: int) -> list[Artwork]:
         """Find all artworks with pagination."""
+        from sqlalchemy.orm import load_only
         session = self._session_factory()
         try:
-            models = session.query(ArtworkModel).limit(
-                limit
-            ).offset(offset).all()
-            # Convert to entities but skip loading image_data
+            # Load only non-BLOB columns for performance
+            models = session.query(ArtworkModel).options(
+                load_only(
+                    ArtworkModel.id,
+                    ArtworkModel.title,
+                    ArtworkModel.artist_name,
+                    ArtworkModel.artist_birth_year,
+                    ArtworkModel.artist_death_year,
+                    ArtworkModel.artist_nationality,
+                    ArtworkModel.creation_year,
+                    ArtworkModel.description,
+                    ArtworkModel.status,
+                    ArtworkModel.image_url,
+                    ArtworkModel.image_mime_type,
+                    ArtworkModel.image_hash,
+                    ArtworkModel.last_known_location,
+                    ArtworkModel.last_known_date,
+                    ArtworkModel.created_at,
+                    ArtworkModel.updated_at
+                )
+            ).limit(limit).offset(offset).all()
             return [self._to_entity(m, skip_image_data=True) for m in models]
         finally:
             session.close()
