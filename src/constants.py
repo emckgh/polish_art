@@ -16,8 +16,10 @@ def get_database_url() -> str:
 class HttpConstants:
     """HTTP-related constants."""
     STATUS_OK: Final[int] = 200
+    STATUS_BAD_REQUEST: Final[int] = 400
     STATUS_NOT_FOUND: Final[int] = 404
-    
+    STATUS_CONFLICT: Final[int] = 409
+
     # Cache durations in seconds
     CACHE_DURATION_ONE_DAY: Final[int] = 86400
 
@@ -172,3 +174,29 @@ class CompressionConstants:
     """Compression related constants."""
     MAX_COMPRESSION_LEVEL: Final[int] = 9
     DEFAULT_COMPRESSION_LEVEL: Final[int] = 6
+
+
+class ScraperConstants:
+    """Constants for the auction-house / gallery web crawler."""
+
+    # Hamming distance (out of 64 bits) below which phash is "similar"
+    PHASH_MATCH_THRESHOLD: Final[int] = 10
+
+    # Seconds between requests to a single domain
+    DEFAULT_CRAWL_DELAY_SECONDS: Final[float] = 3.0
+
+    # Max pages per target per crawl run (listing pages, not image pages)
+    MAX_PAGES_PER_TARGET: Final[int] = 20
+
+    # Max images examined per page before moving on
+    MAX_IMAGES_PER_PAGE: Final[int] = 50
+
+    # HTTP request timeout (seconds)
+    REQUEST_TIMEOUT_SECONDS: Final[int] = 20
+
+    # Minimum image dimension (pixels) to bother evaluating
+    MIN_IMAGE_DIMENSION_PX: Final[int] = 100
+
+    USER_AGENT: Final[str] = (
+        "PolishArtEngine/1.0 (+https://lostpolishart.mcqueeney.org)"
+    )

@@ -9,10 +9,12 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
-    Text
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -264,3 +266,93 @@ class VisionAPIDomainStatsModel(Base):
     first_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
     flagged_suspicious = Column(Boolean, default=False, nullable=False)
+
+
+class ScraperTargetModel(Base):
+    """Auction house or gallery to be crawled on a schedule."""
+
+    __tablename__ = "scraper_targets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    name = Column(String(300), nullable=False)
+    base_url = Column(String(1000), nullable=False)
+    category = Column(String(50), nullable=False)   # 'auction' | 'gallery'
+    country = Column(String(100))
+    scrape_frequency_days = Column(Integer, default=7, nullable=False)
+    last_scraped_at = Column(DateTime)
+    is_active = Column(Boolean, default=True, nullable=False)
+    notes = Column(Text)
+
+    scraped_urls = relationship("ScrapedURLModel", back_populates="target")
+
+
+class ScrapedURLModel(Base):
+    """Record of every image URL seen during crawling."""
+
+    __tablename__ = "scraped_urls"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # The exact image URL and its SHA-256 fingerprint (unique index for O(1) lookup)
+    url = Column(String(2000), nullable=False)
+    url_hash = Column(String(64), nullable=False, unique=True)
+
+    domain = Column(String(200))
+    target_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("scraper_targets.id"),
+        nullable=True,
+    )
+
+    first_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Perceptual hash of the image (populated even for discarded images)
+    image_phash = Column(String(64))
+
+    # True  → the image looked interesting; full artwork row was created
+    # False → no match; image bytes were discarded to save disk
+    was_interesting = Column(Boolean, default=False, nullable=False)
+    discarded_image = Column(Boolean, default=False, nullable=False)
+
+    # FK to artworks only when was_interesting=True
+    artwork_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artworks.id"),
+        nullable=True,
+    )
+
+    target = relationship("ScraperTargetModel", back_populates="scraped_urls")
+    artwork = relationship("ArtworkModel")
+    feedback = relationship("EvaluatorFeedbackModel", back_populates="scraped_url")
+
+    __table_args__ = (
+        Index("ix_scraped_urls_url_hash", "url_hash"),
+        Index("ix_scraped_urls_domain", "domain"),
+    )
+
+
+class EvaluatorFeedbackModel(Base):
+    """Human evaluator judgment on a candidate match."""
+
+    __tablename__ = "evaluator_feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    artwork_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("artworks.id"),
+        nullable=False,
+    )
+    scraped_url_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("scraped_urls.id"),
+        nullable=True,
+    )
+
+    not_a_match = Column(Boolean, default=False, nullable=False)
+    comment = Column(Text)
+    created_by = Column(String(200))
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    artwork = relationship("ArtworkModel")
+    scraped_url = relationship("ScrapedURLModel", back_populates="feedback")

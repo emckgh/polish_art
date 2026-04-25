@@ -21,6 +21,29 @@
                 <div id="imageContainer">
                     <div class="loading-placeholder">Loading image...</div>
                 </div>
+
+                <!-- Evaluator feedback panel -->
+                <div class="not-a-match-panel" id="feedbackPanel">
+                    <h4 class="not-a-match-title">Evaluator Judgment</h4>
+                    <label class="not-a-match-label">
+                        <input type="checkbox" id="notAMatchCheckbox">
+                        <span>Not a match</span>
+                    </label>
+                    <div class="not-a-match-comment-area" id="commentArea">
+                        <textarea
+                            id="notAMatchComment"
+                            class="not-a-match-textarea"
+                            placeholder="Why is this not a match? (used to improve the evaluation engine)"
+                            rows="4"
+                        ></textarea>
+                        <div class="not-a-match-actions">
+                            <button id="submitFeedback" class="btn-feedback-submit">
+                                Save Judgment
+                            </button>
+                            <span id="feedbackStatus" class="feedback-status"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Tabs Section -->

@@ -140,3 +140,13 @@ cython_debug/
 
 env/
 *.json
+!data/scraper_targets.json
+
+# TLS certificates (local dev; never commit private keys)
+*.pem
+config/localhost*.pem
+config/install*.pem
+
+# LLM training export
+data/feedback_export.jsonl
+data/negatives.jsonl

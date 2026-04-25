@@ -138,3 +138,48 @@ class Provenance:
     notes: str = ""
     is_suspicious: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass
+class ScraperTarget:
+    """Auction house or gallery to crawl on a regular schedule."""
+
+    id: UUID = field(default_factory=uuid4)
+    name: str = ""
+    base_url: str = ""
+    category: str = "auction"   # 'auction' | 'gallery'
+    country: Optional[str] = None
+    scrape_frequency_days: int = 7
+    last_scraped_at: Optional[datetime] = None
+    is_active: bool = True
+    notes: Optional[str] = None
+
+
+@dataclass
+class ScrapedURL:
+    """Record of an image URL seen during a crawl."""
+
+    id: UUID = field(default_factory=uuid4)
+    url: str = ""
+    url_hash: str = ""
+    domain: Optional[str] = None
+    target_id: Optional[UUID] = None
+    first_seen_at: datetime = field(default_factory=datetime.utcnow)
+    last_seen_at: datetime = field(default_factory=datetime.utcnow)
+    image_phash: Optional[str] = None
+    was_interesting: bool = False
+    discarded_image: bool = False
+    artwork_id: Optional[UUID] = None
+
+
+@dataclass
+class EvaluatorFeedback:
+    """Human evaluator judgment on a candidate artwork / match."""
+
+    id: UUID = field(default_factory=uuid4)
+    artwork_id: UUID = field(default_factory=uuid4)
+    scraped_url_id: Optional[UUID] = None
+    not_a_match: bool = False
+    comment: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: datetime = field(default_factory=datetime.utcnow)

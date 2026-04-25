@@ -25,6 +25,11 @@ from src.services.artwork_service import ArtworkSearchService
 router = APIRouter(prefix="/api", tags=["artworks"])
 
 
+@router.get("/health", tags=["meta"])
+async def health_check():
+    return {"status": "ok"}
+
+
 def artwork_to_dict(artwork):
     """Convert Artwork entity to dict for API response."""
     return {
@@ -663,4 +668,319 @@ async def get_vision_stats():
             "unique_artworks": row[2] or 0,
             "interesting_count": row[3] or 0
         }
+
+
+# ---------------------------------------------------------------------------
+# Scraper target management endpoints
+# ---------------------------------------------------------------------------
+
+def _get_db_engine():
+    """Return a SQLAlchemy engine for raw queries."""
+    from sqlalchemy import create_engine as _ce
+    from src.repositories.models import Base as _Base
+    engine = _ce(get_database_url())
+    _Base.metadata.create_all(engine, checkfirst=True)
+    return engine
+
+
+@router.get("/scraper/targets")
+async def list_scraper_targets(
+    category: Optional[str] = Query(None),
+    active_only: bool = Query(True),
+):
+    """List auction-house / gallery targets."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import ScraperTargetModel
+
+    engine = _get_db_engine()
+    with Session(engine) as session:
+        q = session.query(ScraperTargetModel)
+        if active_only:
+            q = q.filter(ScraperTargetModel.is_active == True)
+        if category:
+            q = q.filter(ScraperTargetModel.category == category)
+        rows = q.order_by(ScraperTargetModel.name).all()
+
+    return {
+        "total": len(rows),
+        "targets": [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "base_url": r.base_url,
+                "category": r.category,
+                "country": r.country,
+                "scrape_frequency_days": r.scrape_frequency_days,
+                "last_scraped_at": r.last_scraped_at.isoformat() if r.last_scraped_at else None,
+                "is_active": r.is_active,
+                "notes": r.notes,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/scraper/targets", status_code=201)
+async def create_scraper_target(body: dict):
+    """Add a new scraper target."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import ScraperTargetModel
+
+    name = (body.get("name") or "").strip()
+    base_url = (body.get("base_url") or "").strip()
+    if not name or not base_url:
+        raise HTTPException(
+            status_code=HttpConstants.STATUS_BAD_REQUEST,
+            detail="name and base_url are required",
+        )
+
+    engine = _get_db_engine()
+    with Session(engine) as session:
+        row = ScraperTargetModel(
+            name=name,
+            base_url=base_url,
+            category=body.get("category", "auction"),
+            country=body.get("country"),
+            scrape_frequency_days=int(body.get("scrape_frequency_days", 7)),
+            is_active=bool(body.get("is_active", True)),
+            notes=body.get("notes"),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return {"id": str(row.id), "name": row.name, "base_url": row.base_url}
+
+
+@router.patch("/scraper/targets/{target_id}")
+async def update_scraper_target(target_id: str, body: dict):
+    """Enable / disable a target or update its settings."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import ScraperTargetModel
+
+    engine = _get_db_engine()
+    with Session(engine) as session:
+        row = session.get(ScraperTargetModel, target_id)
+        if row is None:
+            raise HTTPException(
+                status_code=HttpConstants.STATUS_NOT_FOUND,
+                detail="Target not found",
+            )
+        allowed = {
+            "name", "base_url", "category", "country",
+            "scrape_frequency_days", "is_active", "notes",
+        }
+        for key, value in body.items():
+            if key in allowed:
+                setattr(row, key, value)
+        session.commit()
+        return {"id": str(row.id), "is_active": row.is_active}
+
+
+# ---------------------------------------------------------------------------
+# Scraped URL log endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/scraper/urls")
+async def list_scraped_urls(
+    domain: Optional[str] = Query(None),
+    was_interesting: Optional[bool] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+):
+    """Paginated log of crawled image URLs."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import ScrapedURLModel
+
+    engine = _get_db_engine()
+    offset = (page - 1) * page_size
+    with Session(engine) as session:
+        q = session.query(ScrapedURLModel)
+        if domain:
+            q = q.filter(ScrapedURLModel.domain == domain)
+        if was_interesting is not None:
+            q = q.filter(ScrapedURLModel.was_interesting == was_interesting)
+        total = q.count()
+        rows = (
+            q.order_by(ScrapedURLModel.last_seen_at.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "urls": [
+            {
+                "id": str(r.id),
+                "url": r.url,
+                "domain": r.domain,
+                "image_phash": r.image_phash,
+                "was_interesting": r.was_interesting,
+                "discarded_image": r.discarded_image,
+                "artwork_id": str(r.artwork_id) if r.artwork_id else None,
+                "first_seen_at": r.first_seen_at.isoformat() if r.first_seen_at else None,
+                "last_seen_at": r.last_seen_at.isoformat() if r.last_seen_at else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/scraper/stats")
+async def get_scraper_stats():
+    """Aggregate statistics for the crawl cache."""
+    from sqlalchemy import text
+
+    engine = _get_db_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT
+                    COUNT(*) AS total_seen,
+                    SUM(CASE WHEN was_interesting = 1 THEN 1 ELSE 0 END) AS total_interesting,
+                    SUM(CASE WHEN discarded_image = 1 THEN 1 ELSE 0 END) AS total_discarded,
+                    COUNT(DISTINCT domain) AS unique_domains
+                FROM scraped_urls
+                """
+            )
+        ).fetchone()
+
+    target_row = None
+    with engine.connect() as conn:
+        target_row = conn.execute(
+            text("SELECT COUNT(*) FROM scraper_targets WHERE is_active = 1")
+        ).fetchone()
+
+    return {
+        "active_targets": target_row[0] if target_row else 0,
+        "total_urls_seen": row[0] or 0,
+        "total_interesting": row[1] or 0,
+        "total_discarded": row[2] or 0,
+        "unique_domains": row[3] or 0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Evaluator feedback endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/feedback", status_code=201)
+async def submit_feedback(body: dict):
+    """Record an evaluator's 'not a match' judgment with optional comment."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import EvaluatorFeedbackModel
+
+    artwork_id = (body.get("artwork_id") or "").strip()
+    if not artwork_id:
+        raise HTTPException(
+            status_code=HttpConstants.STATUS_BAD_REQUEST,
+            detail="artwork_id is required",
+        )
+
+    engine = _get_db_engine()
+    with Session(engine) as session:
+        # Upsert: one feedback row per artwork (update if exists)
+        existing = (
+            session.query(EvaluatorFeedbackModel)
+            .filter(EvaluatorFeedbackModel.artwork_id == artwork_id)
+            .first()
+        )
+        if existing:
+            existing.not_a_match = bool(body.get("not_a_match", False))
+            existing.comment = body.get("comment")
+            existing.created_by = body.get("created_by")
+            row = existing
+        else:
+            row = EvaluatorFeedbackModel(
+                artwork_id=artwork_id,
+                scraped_url_id=body.get("scraped_url_id"),
+                not_a_match=bool(body.get("not_a_match", False)),
+                comment=body.get("comment"),
+                created_by=body.get("created_by"),
+            )
+            session.add(row)
+        session.commit()
+        session.refresh(row)
+
+    return {
+        "id": str(row.id),
+        "artwork_id": str(row.artwork_id),
+        "not_a_match": row.not_a_match,
+        "comment": row.comment,
+    }
+
+
+@router.get("/feedback")
+async def list_feedback(
+    not_a_match_only: bool = Query(False),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+):
+    """List all evaluator feedback (used for LLM training export)."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import EvaluatorFeedbackModel
+
+    engine = _get_db_engine()
+    offset = (page - 1) * page_size
+    with Session(engine) as session:
+        q = session.query(EvaluatorFeedbackModel)
+        if not_a_match_only:
+            q = q.filter(EvaluatorFeedbackModel.not_a_match == True)
+        total = q.count()
+        rows = (
+            q.order_by(EvaluatorFeedbackModel.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "feedback": [
+            {
+                "id": str(r.id),
+                "artwork_id": str(r.artwork_id),
+                "scraped_url_id": str(r.scraped_url_id) if r.scraped_url_id else None,
+                "not_a_match": r.not_a_match,
+                "comment": r.comment,
+                "created_by": r.created_by,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/feedback/{artwork_id}")
+async def get_feedback_for_artwork(artwork_id: str):
+    """Get evaluator feedback for a specific artwork (returns null if none)."""
+    from sqlalchemy.orm import Session
+    from src.repositories.models import EvaluatorFeedbackModel
+
+    engine = _get_db_engine()
+    with Session(engine) as session:
+        row = (
+            session.query(EvaluatorFeedbackModel)
+            .filter(EvaluatorFeedbackModel.artwork_id == artwork_id)
+            .first()
+        )
+
+    if row is None:
+        return {"artwork_id": artwork_id, "feedback": None}
+
+    return {
+        "artwork_id": artwork_id,
+        "feedback": {
+            "id": str(row.id),
+            "not_a_match": row.not_a_match,
+            "comment": row.comment,
+            "created_by": row.created_by,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        },
+    }
 

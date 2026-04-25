@@ -4,7 +4,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$Target = "polishart@lostpolishart.mcqueeney.org"
+    [string]$Target = "polishart-vps"
 )
 
 $ErrorActionPreference = "Stop"

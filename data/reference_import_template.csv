@@ -1,0 +1,3 @@
+title,artist_name,artist_birth_year,artist_death_year,artist_nationality,creation_year,description,image_url,image_path,last_known_location,source
+"Landscape with River","Jan Kowalski",1890,1950,"Polish",1925,"Oil on canvas, 80x60cm","https://example.com/image.jpg","","National Museum Warsaw","NIOD"
+"Portrait of a Woman","",,,,,,"","new_images/my_photo.jpg","Last seen Kraków 1939","Private collection note"

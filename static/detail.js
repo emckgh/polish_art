@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     setupTabs();
     loadArtworkDetails();
+    setupFeedbackPanel();
+    loadExistingFeedback();
 });
 
 // Setup tab switching
@@ -815,4 +817,92 @@ function showError(message) {
     document.getElementById('artworkSubtitle').textContent = message;
     document.getElementById('imageContainer').innerHTML = 
         `<div class="alert alert-error">${message}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Evaluator Feedback Panel
+// ---------------------------------------------------------------------------
+
+function setupFeedbackPanel() {
+    const checkbox = document.getElementById('notAMatchCheckbox');
+    const commentArea = document.getElementById('commentArea');
+    const submitBtn = document.getElementById('submitFeedback');
+
+    if (!checkbox) return;
+
+    checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+            commentArea.classList.add('visible');
+        } else {
+            commentArea.classList.remove('visible');
+            // Allow saving an unchecked state (clear a previous judgment)
+        }
+    });
+
+    submitBtn.addEventListener('click', submitFeedback);
+}
+
+async function loadExistingFeedback() {
+    if (!artworkId) return;
+    try {
+        const resp = await fetch(`${API_BASE}/feedback/${artworkId}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.feedback) return;
+
+        const checkbox = document.getElementById('notAMatchCheckbox');
+        const commentArea = document.getElementById('commentArea');
+        const textarea = document.getElementById('notAMatchComment');
+        const status = document.getElementById('feedbackStatus');
+
+        checkbox.checked = data.feedback.not_a_match;
+        if (data.feedback.not_a_match) {
+            commentArea.classList.add('visible');
+        }
+        textarea.value = data.feedback.comment || '';
+        status.textContent = 'Judgment already recorded';
+        status.classList.remove('error');
+    } catch (_) {
+        // silently ignore — feedback panel is non-critical
+    }
+}
+
+async function submitFeedback() {
+    if (!artworkId) return;
+
+    const checkbox = document.getElementById('notAMatchCheckbox');
+    const textarea = document.getElementById('notAMatchComment');
+    const status = document.getElementById('feedbackStatus');
+    const submitBtn = document.getElementById('submitFeedback');
+
+    const payload = {
+        artwork_id: artworkId,
+        not_a_match: checkbox.checked,
+        comment: textarea.value.trim() || null,
+    };
+
+    submitBtn.disabled = true;
+    status.textContent = 'Saving…';
+    status.classList.remove('error');
+
+    try {
+        const resp = await fetch(`${API_BASE}/feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+
+        status.textContent = 'Saved';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+    } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+        status.classList.add('error');
+    } finally {
+        submitBtn.disabled = false;
+    }
 }
