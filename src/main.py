@@ -11,7 +11,10 @@ from src.api.auth_routes import auth_router
 from src.api.scraper_status_auth import require_scraper_status_user
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
-_SCRAPER_STATUS_HTML = _STATIC_DIR / "status.html"
+# Not under static/ — nginx often aliases /static/ to disk, which bypasses the app and HTTP Basic.
+_SCRAPER_STATUS_HTML = (
+    Path(__file__).resolve().parent.parent / "static_private" / "scraper_status.html"
+)
 
 
 app = FastAPI(
@@ -33,8 +36,8 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(auth_router)
 
-# Scraper status page (auth required; must be before /static mount)
-@app.get("/static/status.html", dependencies=[Depends(require_scraper_status_user)])
+# Scraper status (auth required; path must not be under nginx's /static/ alias)
+@app.get("/scraper/status", dependencies=[Depends(require_scraper_status_user)])
 async def scraper_status_page():
     return FileResponse(
         _SCRAPER_STATUS_HTML,

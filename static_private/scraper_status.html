@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper Status — Polish Looted Art</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .nav-bar a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+        .nav-bar a:hover { text-decoration: underline; }
+        .nav-bar span { color: #aaa; }
+
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px var(--shadow);
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.1;
+        }
+        .stat-card .label {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .section-heading {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 32px 0 12px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .last-run-bar {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 14px 20px;
+            box-shadow: 0 2px 8px var(--shadow);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .last-run-bar .run-label { color: #888; font-size: 0.9em; }
+        .last-run-bar .run-time { font-weight: 700; color: #333; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #28a745; display: inline-block; flex-shrink: 0;
+        }
+        .status-dot.stale { background: #ffc107; }
+        .status-dot.never { background: #ccc; }
+
+        .targets-table-wrap {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        .targets-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        .targets-table thead { background: var(--primary); color: #fff; }
+        .targets-table th {
+            padding: 11px 14px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .targets-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .targets-table tr:last-child td { border-bottom: none; }
+        .targets-table tr:hover td { background: #f9f9f9; }
+        .targets-table .num { text-align: right; }
+        .badge-interesting {
+            display: inline-block;
+            background: #dc3545;
+            color: #fff;
+            font-size: 0.78em;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-weight: 700;
+        }
+        .badge-zero { color: #bbb; }
+
+        .recent-list {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+            overflow: hidden;
+        }
+        .recent-item {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .recent-item:last-child { border-bottom: none; }
+        .recent-domain {
+            font-weight: 600;
+            color: var(--primary);
+            white-space: nowrap;
+            min-width: 160px;
+        }
+        .recent-meta { flex: 1; }
+        .recent-title { font-size: 0.95em; color: #333; }
+        .recent-url { font-size: 0.78em; color: #aaa; word-break: break-all; }
+        .recent-time { font-size: 0.8em; color: #999; white-space: nowrap; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #aaa;
+            font-size: 1em;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-row input {
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 0.9em;
+            flex: 1;
+            min-width: 180px;
+            max-width: 320px;
+        }
+        .filter-row select {
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 0.9em;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav-bar">
+        <a href="/">← Artwork Database</a>
+        <span>|</span>
+        <span style="color:#555; font-weight:600;">Scraper Status</span>
+    </div>
+
+    <header>
+        <h1>Scraper Status</h1>
+        <p class="subtitle">Auction house and gallery monitoring overview</p>
+    </header>
+
+    <div id="lastRunBar" class="last-run-bar">
+        <span class="status-dot never" id="statusDot"></span>
+        <span class="run-label">Last scrape completed:</span>
+        <span class="run-time" id="lastRunTime">Loading…</span>
+        <span class="run-label" id="nextRunLabel"></span>
+    </div>
+
+    <div class="stat-cards">
+        <div class="stat-card">
+            <div class="value" id="statArtworks">—</div>
+            <div class="label">Reference artworks</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="statTargets">—</div>
+            <div class="label">Sites monitored</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="statScraped">—</div>
+            <div class="label">Sites scraped so far</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="statUrls">—</div>
+            <div class="label">Images scanned</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="statInteresting" style="color: #dc3545;">—</div>
+            <div class="label">Potential matches</div>
+        </div>
+    </div>
+
+    <div class="section-heading">Per-site Scrape Log</div>
+
+    <div class="filter-row">
+        <input type="text" id="siteFilter" placeholder="Filter by site name…" oninput="renderTargets()">
+        <select id="countryFilter" onchange="renderTargets()">
+            <option value="">All countries</option>
+        </select>
+        <select id="statusFilter" onchange="renderTargets()">
+            <option value="">All</option>
+            <option value="scraped">Scraped</option>
+            <option value="pending">Not yet scraped</option>
+            <option value="interesting">Has matches</option>
+        </select>
+    </div>
+
+    <div class="targets-table-wrap">
+        <table class="targets-table">
+            <thead>
+                <tr>
+                    <th>Site</th>
+                    <th>Country</th>
+                    <th>Last scraped</th>
+                    <th class="num">Images scanned</th>
+                    <th class="num">Matches</th>
+                </tr>
+            </thead>
+            <tbody id="targetsBody">
+                <tr><td colspan="5" class="empty-state">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-heading">Recent Interesting Finds</div>
+    <div class="recent-list" id="recentList">
+        <div class="empty-state">Loading…</div>
+    </div>
+</div>
+
+<script>
+let allTargets = [];
+
+async function loadStatus() {
+    try {
+        const res = await fetch('/api/scraper/summary', { credentials: 'include' });
+        if (res.status === 401) {
+            document.getElementById('lastRunTime').textContent = 'Not authenticated (reload and sign in if prompted).';
+            return;
+        }
+        const data = await res.json();
+        renderSummary(data);
+    } catch (e) {
+        document.getElementById('lastRunTime').textContent = 'Error loading data';
+        console.error(e);
+    }
+}
+
+function renderSummary(data) {
+    // Last run bar
+    const dot = document.getElementById('statusDot');
+    const runTime = document.getElementById('lastRunTime');
+    const nextLabel = document.getElementById('nextRunLabel');
+
+    if (data.last_scrape_completed) {
+        const d = new Date(data.last_scrape_completed + 'Z');
+        const hoursAgo = (Date.now() - d) / 3600000;
+        runTime.textContent = formatDatetime(d) + ` (${hoursAgoStr(hoursAgo)} ago)`;
+        if (hoursAgo < 26) {
+            dot.className = 'status-dot';
+        } else {
+            dot.className = 'status-dot stale';
+            nextLabel.textContent = '— may be overdue';
+        }
+    } else {
+        runTime.textContent = 'Never — first scrape pending';
+        dot.className = 'status-dot never';
+    }
+
+    // Stat cards
+    document.getElementById('statArtworks').textContent = fmt(data.total_artworks);
+    document.getElementById('statTargets').textContent = fmt(data.active_targets);
+    document.getElementById('statScraped').textContent = fmt(data.targets_scraped);
+    document.getElementById('statUrls').textContent = fmt(data.total_urls_seen);
+    document.getElementById('statInteresting').textContent = fmt(data.total_interesting);
+
+    // Country filter
+    const countries = [...new Set(data.targets.map(t => t.country).filter(Boolean))].sort();
+    const sel = document.getElementById('countryFilter');
+    countries.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        sel.appendChild(opt);
+    });
+
+    allTargets = data.targets;
+    renderTargets();
+    renderRecent(data.recent_interesting);
+}
+
+function renderTargets() {
+    const nameQ = document.getElementById('siteFilter').value.toLowerCase();
+    const country = document.getElementById('countryFilter').value;
+    const status = document.getElementById('statusFilter').value;
+
+    const filtered = allTargets.filter(t => {
+        if (nameQ && !t.name.toLowerCase().includes(nameQ)) return false;
+        if (country && t.country !== country) return false;
+        if (status === 'scraped' && !t.last_scraped_at) return false;
+        if (status === 'pending' && t.last_scraped_at) return false;
+        if (status === 'interesting' && t.interesting_count === 0) return false;
+        return true;
+    });
+
+    const tbody = document.getElementById('targetsBody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No sites match the filter.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(t => {
+        const scraped = t.last_scraped_at
+            ? formatDatetime(new Date(t.last_scraped_at + 'Z'))
+            : '<span style="color:#bbb">Not yet</span>';
+        const matches = t.interesting_count > 0
+            ? `<span class="badge-interesting">${t.interesting_count}</span>`
+            : `<span class="badge-zero">—</span>`;
+        const urls = t.urls_found > 0 ? fmt(t.urls_found) : '<span class="badge-zero">—</span>';
+        return `<tr>
+            <td><a href="${escHtml(t.base_url)}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-weight:600">${escHtml(t.name)}</a></td>
+            <td>${escHtml(t.country || '—')}</td>
+            <td>${scraped}</td>
+            <td class="num">${urls}</td>
+            <td class="num">${matches}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderRecent(items) {
+    const el = document.getElementById('recentList');
+    if (!items || items.length === 0) {
+        el.innerHTML = '<div class="empty-state">No interesting finds yet — check back after the first scrape completes.</div>';
+        return;
+    }
+    el.innerHTML = items.map(item => {
+        const title = item.artwork_title || 'Candidate artwork';
+        const time = item.first_seen_at ? formatDatetime(new Date(item.first_seen_at + 'Z')) : '';
+        const artworkLink = item.artwork_id
+            ? `<a href="/static/detail.html?id=${item.artwork_id}" style="color:var(--primary);font-weight:600">${escHtml(title)}</a>`
+            : escHtml(title);
+        return `<div class="recent-item">
+            <div class="recent-domain">${escHtml(item.domain || '—')}</div>
+            <div class="recent-meta">
+                <div class="recent-title">${artworkLink}</div>
+                <div class="recent-url">${escHtml(item.url)}</div>
+            </div>
+            <div class="recent-time">${time}</div>
+        </div>`;
+    }).join('');
+}
+
+function fmt(n) {
+    return (n || 0).toLocaleString();
+}
+
+function formatDatetime(d) {
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function hoursAgoStr(h) {
+    if (h < 1) return 'just now';
+    if (h < 24) return `${Math.round(h)}h`;
+    return `${Math.round(h / 24)}d`;
+}
+
+function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadStatus();
+</script>
+</body>
+</html>
