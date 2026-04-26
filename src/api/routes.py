@@ -864,6 +864,101 @@ async def get_scraper_stats():
 
 
 # ---------------------------------------------------------------------------
+# Scraper summary (for status page)
+# ---------------------------------------------------------------------------
+
+@router.get("/scraper/summary")
+async def get_scraper_summary():
+    """Enriched summary used by the status page: last run, per-target stats, recent finds."""
+    from sqlalchemy import text
+
+    engine = _get_db_engine()
+    with engine.connect() as conn:
+        # Overall URL stats
+        url_row = conn.execute(text("""
+            SELECT
+                COUNT(*)                                                      AS total_seen,
+                SUM(CASE WHEN was_interesting = 1 THEN 1 ELSE 0 END)         AS total_interesting,
+                MAX(first_seen_at)                                            AS latest_seen_at
+            FROM scraped_urls
+        """)).fetchone()
+
+        # Total artworks in DB
+        artwork_row = conn.execute(text("SELECT COUNT(*) FROM artworks")).fetchone()
+
+        # Per-target stats joined with scraped_urls counts
+        target_rows = conn.execute(text("""
+            SELECT
+                t.id,
+                t.name,
+                t.country,
+                t.category,
+                t.base_url,
+                t.last_scraped_at,
+                COUNT(u.id)                                                   AS urls_found,
+                SUM(CASE WHEN u.was_interesting = 1 THEN 1 ELSE 0 END)       AS interesting_count
+            FROM scraper_targets t
+            LEFT JOIN scraped_urls u ON u.target_id = t.id
+            WHERE t.is_active = 1
+            GROUP BY t.id
+            ORDER BY t.last_scraped_at DESC
+        """)).fetchall()
+
+        # Most recent interesting finds (up to 10)
+        recent_rows = conn.execute(text("""
+            SELECT u.url, u.domain, u.first_seen_at, a.title, a.id AS artwork_id
+            FROM scraped_urls u
+            LEFT JOIN artworks a ON a.id = u.artwork_id
+            WHERE u.was_interesting = 1
+            ORDER BY u.first_seen_at DESC
+            LIMIT 10
+        """)).fetchall()
+
+    def _iso(val) -> Optional[str]:
+        """Return ISO string from a datetime or string value, or None."""
+        if val is None:
+            return None
+        if hasattr(val, "isoformat"):
+            return val.isoformat()
+        return str(val)
+
+    last_scrape_strs = [r[5] for r in target_rows if r[5] is not None]
+    last_scrape = max(last_scrape_strs) if last_scrape_strs else None
+
+    return {
+        "last_scrape_completed": last_scrape,
+        "total_artworks": artwork_row[0] if artwork_row else 0,
+        "total_urls_seen": url_row[0] or 0,
+        "total_interesting": url_row[1] or 0,
+        "active_targets": len(target_rows),
+        "targets_scraped": sum(1 for r in target_rows if r[5] is not None),
+        "targets": [
+            {
+                "id": str(r[0]),
+                "name": r[1],
+                "country": r[2],
+                "category": r[3],
+                "base_url": r[4],
+                "last_scraped_at": _iso(r[5]),
+                "urls_found": r[6] or 0,
+                "interesting_count": r[7] or 0,
+            }
+            for r in target_rows
+        ],
+        "recent_interesting": [
+            {
+                "url": r[0],
+                "domain": r[1],
+                "first_seen_at": _iso(r[2]),
+                "artwork_title": r[3],
+                "artwork_id": str(r[4]) if r[4] else None,
+            }
+            for r in recent_rows
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Evaluator feedback endpoints
 # ---------------------------------------------------------------------------
 

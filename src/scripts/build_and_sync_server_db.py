@@ -226,6 +226,11 @@ def build_export(
             )
     except sqlite3.OperationalError:
         pass
+
+    # Scraper tables — needed by the status page on the VPS
+    for simple_table in ("scraper_targets", "scraped_urls"):
+        copy_table(simple_table, f"SELECT * FROM {simple_table}", [])
+
     dest.commit()
     dest.close()
     src.close()
