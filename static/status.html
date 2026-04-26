@@ -256,7 +256,11 @@ let allTargets = [];
 
 async function loadStatus() {
     try {
-        const res = await fetch('/api/scraper/summary');
+        const res = await fetch('/api/scraper/summary', { credentials: 'include' });
+        if (res.status === 401) {
+            document.getElementById('lastRunTime').textContent = 'Not authenticated (reload and sign in if prompted).';
+            return;
+        }
         const data = await res.json();
         renderSummary(data);
     } catch (e) {

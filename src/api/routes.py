@@ -9,6 +9,7 @@ from src.api.schemas import (
     ArtworkSchema,
     SearchQuerySchema
 )
+from src.api.scraper_status_auth import require_scraper_status_user
 from src.constants import (
     CacheConstants,
     HttpConstants,
@@ -21,6 +22,7 @@ from src.repositories.sqlite_repository import (
 )
 from src.services.artwork_service import ArtworkSearchService
 
+_SCRAPER_AUTH = [Depends(require_scraper_status_user)]
 
 router = APIRouter(prefix="/api", tags=["artworks"])
 
@@ -683,7 +685,7 @@ def _get_db_engine():
     return engine
 
 
-@router.get("/scraper/targets")
+@router.get("/scraper/targets", dependencies=_SCRAPER_AUTH)
 async def list_scraper_targets(
     category: Optional[str] = Query(None),
     active_only: bool = Query(True),
@@ -720,7 +722,7 @@ async def list_scraper_targets(
     }
 
 
-@router.post("/scraper/targets", status_code=201)
+@router.post("/scraper/targets", status_code=201, dependencies=_SCRAPER_AUTH)
 async def create_scraper_target(body: dict):
     """Add a new scraper target."""
     from sqlalchemy.orm import Session
@@ -751,7 +753,7 @@ async def create_scraper_target(body: dict):
         return {"id": str(row.id), "name": row.name, "base_url": row.base_url}
 
 
-@router.patch("/scraper/targets/{target_id}")
+@router.patch("/scraper/targets/{target_id}", dependencies=_SCRAPER_AUTH)
 async def update_scraper_target(target_id: str, body: dict):
     """Enable / disable a target or update its settings."""
     from sqlalchemy.orm import Session
@@ -780,7 +782,7 @@ async def update_scraper_target(target_id: str, body: dict):
 # Scraped URL log endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("/scraper/urls")
+@router.get("/scraper/urls", dependencies=_SCRAPER_AUTH)
 async def list_scraped_urls(
     domain: Optional[str] = Query(None),
     was_interesting: Optional[bool] = Query(None),
@@ -828,7 +830,7 @@ async def list_scraped_urls(
     }
 
 
-@router.get("/scraper/stats")
+@router.get("/scraper/stats", dependencies=_SCRAPER_AUTH)
 async def get_scraper_stats():
     """Aggregate statistics for the crawl cache."""
     from sqlalchemy import text
@@ -867,7 +869,7 @@ async def get_scraper_stats():
 # Scraper summary (for status page)
 # ---------------------------------------------------------------------------
 
-@router.get("/scraper/summary")
+@router.get("/scraper/summary", dependencies=_SCRAPER_AUTH)
 async def get_scraper_summary():
     """Enriched summary used by the status page: last run, per-target stats, recent finds."""
     from sqlalchemy import text
