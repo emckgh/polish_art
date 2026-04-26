@@ -60,12 +60,13 @@ echo "--- Building server export DB ---"
 EXPORT_SIZE_MB=$(du -m "$EXPORT_DB" | cut -f1)
 echo "Export size: ${EXPORT_SIZE_MB} MB"
 
-# Push to VPS — atomic: rsync writes to a temp file then renames
+# Push to VPS — atomic: full upload to .new, then mv (GNU rsync has no --temp-file)
 echo "--- Syncing to VPS ---"
-rsync -az --progress \
-    --temp-file="polish_art/data/artworks.db.tmp" \
-    "$EXPORT_DB" \
-    "$VPS:polish_art/data/artworks.db"
+REMOTE_DIR="polish_art/data"
+REMOTE_DB="$REMOTE_DIR/artworks.db"
+REMOTE_NEW="$REMOTE_DIR/artworks.db.new"
+rsync -az --progress "$EXPORT_DB" "$VPS:$REMOTE_NEW"
+ssh "$VPS" "mv -f $REMOTE_NEW $REMOTE_DB"
 
 # Restart the app service on the VPS
 echo "--- Restarting polish-art service ---"
